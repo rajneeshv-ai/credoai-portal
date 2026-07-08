@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Rajneesh Kumar Verma">
+  <meta name="copyright" content="© 2026 Rajneesh Kumar Verma. Licensed under Apache 2.0.">
+  
+  <title>TSCS Confidence Gate</title>
+  <style>
+    :root {
+      --bg: #F8FAFC; --card-bg: #FFFFFF; --text-main: #0F172A; --text-muted: #64748B;
+      --border: #E2E8F0; --accent: #185FA5; --success: #10B981; --danger: #EF4444; --warning: #F59E0B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { background: var(--bg); color: var(--text-main); padding: 40px; }
+    .header { margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+    .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .header p { font-size: 14px; color: var(--text-muted); line-height: 1.5; max-width: 800px; }
+    .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1000px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    .control-group { margin-bottom: 24px; }
+    .control-group label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent); }
+    .formula-box { background: #0F172A; color: #F8FAFC; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 12px; text-align: left; margin-bottom: 24px; line-height: 1.6; }
+    .highlight { color: #38BDF8; font-weight: bold; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .metric { background: #F1F5F9; padding: 16px; border-radius: 6px; text-align: center; border: 1px solid var(--border); }
+    .metric-value { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .metric-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .routing-decision { padding: 20px; border-radius: 6px; text-align: center; border: 2px solid; transition: all 0.3s ease; }
+    .decision-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .decision-desc { font-size: 13px; font-weight: 500; }
+    .status-auto { background: #ECFDF5; border-color: var(--success); color: #065F46; }
+    .status-hitl { background: #FEF2F2; border-color: var(--warning); color: #991B1B; }
+    .status-revoke { background: #1E293B; border-color: var(--danger); color: #F8FAFC; }
+    .insight { background: #FFFBEB; border-left: 4px solid var(--warning); padding: 16px; font-size: 13px; color: #92400E; margin-top: 24px; line-height: 1.5; }
+    .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 12px; background: #F1F5F9; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>TSCS Confidence Gate (Phase 2)</h1>
+    <p>Simulating the Consent-Gated Temporal-Structural Confidence Score. Adjust structural density, regulatory freshness, and DPDPA consent to observe deterministic routing.</p>
+  </div>
+  <div class="dashboard">
+    <div class="card">
+      <h2>Algorithm Parameters</h2>
+      <div class="toggle-row">
+        <input type="checkbox" id="consent-toggle" checked onchange="calculate()" style="width: 18px; height: 18px; accent-color: var(--success);">
+        <label for="consent-toggle" style="font-size: 13px; font-weight: 600;">DPDPA Consent Active (C_status = 1)</label>
+      </div>
+      <div class="control-group">
+        <label><span>Retrieved Nodes (|V|)</span><span id="nodes-val">5</span></label>
+        <input type="range" id="nodes-slider" min="3" max="20" value="8" oninput="calculate()">
+      </div>
+      <div class="control-group">
+        <label><span>Retrieved Edges (|E|)</span><span id="edges-val">4</span></label>
+        <input type="range" id="edges-slider" min="2" max="28" value="12" oninput="calculate()">
+      </div>
+      <div class="control-group">
+        <label><span>Avg. Node Age (Days)</span><span id="age-val">30</span></label>
+        <input type="range" id="age-slider" min="0" max="3650" value="120" oninput="calculate()">
+      </div>
+      <div class="insight"><strong>Architectural Insight:</strong> TSCS introduces Temporal Decay. A highly dense subgraph of 10-year-old regulations will mathematically decay below the 0.75 threshold, forcing a HITL review for regulatory freshness.</div>
+    </div>
+    <div class="card">
+      <h2>Deterministic Evaluation</h2>
+      <div class="formula-box">
+        TSCS = C_status * [ α(Density) + β(e^-(λ * Age)) ]<br><br>
+        <span style="color: #94A3B8;">α (Structural) = 0.65 | β (Temporal) = 0.35 | λ = 0.001</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><div class="metric-value" id="density-out">0.00</div><div class="metric-label">Structural Score</div></div>
+        <div class="metric"><div class="metric-value" id="temporal-out">0.00</div><div class="metric-label">Temporal Score</div></div>
+        <div class="metric"><div class="metric-value" id="tscs-out" style="color: var(--accent);">0.00</div><div class="metric-label">Final TSCS</div></div>
+      </div>
+      <div id="routing-box" class="routing-decision status-hitl">
+        <div class="decision-title" id="decision-title">STRUCTURAL HITL</div>
+        <div class="decision-desc" id="decision-desc">Confidence < 0.75. Routing to Human-in-the-Loop.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MAX_NODES = 20;
+    const ALPHA = 0.65;
+    const BETA = 0.35;
+    const LAMBDA = 0.001;
+
+    function calculate() {
+      let consent = document.getElementById('consent-toggle').checked ? 1 : 0;
+      let nodes = parseInt(document.getElementById('nodes-slider').value);
+      let maxEdges = (nodes * (nodes - 1)) / 2;
+      let edgesSlider = document.getElementById('edges-slider');
+      edgesSlider.max = maxEdges;
+      let edges = parseInt(edgesSlider.value);
+      if (edges > maxEdges) { edges = maxEdges; edgesSlider.value = edges; }
+      let ageDays = parseInt(document.getElementById('age-slider').value);
+
+      document.getElementById('nodes-val').innerText = nodes;
+      document.getElementById('edges-val').innerText = edges;
+      document.getElementById('age-val').innerText = ageDays;
+
+      // Structural (Density)
+      let density = (2 * edges) / (nodes * (nodes - 1));
+      let nodeWeight = Math.log(nodes + 1) / Math.log(MAX_NODES + 1);
+      let structuralScore = Math.min(density * nodeWeight, 1.0);
+
+      // Temporal (Exponential Decay)
+      let temporalScore = Math.exp(-LAMBDA * ageDays);
+
+      // Final TSCS
+      let tscs = consent * ((ALPHA * structuralScore) + (BETA * temporalScore));
+
+      document.getElementById('density-out').innerText = structuralScore.toFixed(2);
+      document.getElementById('temporal-out').innerText = temporalScore.toFixed(2);
+      document.getElementById('tscs-out').innerText = tscs.toFixed(2);
+
+      let routingBox = document.getElementById('routing-box');
+      let title = document.getElementById('decision-title');
+      let desc = document.getElementById('decision-desc');
+
+      if (consent === 0) {
+        routingBox.className = 'routing-decision status-revoke';
+        title.innerText = 'SAGA ROLLBACK';
+        desc.innerText = 'DPDPA Consent Revoked (C_status=0). Transaction terminated.';
+      } else if (tscs >= 0.75) {
+        routingBox.className = 'routing-decision status-auto';
+        title.innerText = 'AUTONOMOUS EXECUTION';
+        desc.innerText = 'TSCS ≥ 0.75. Validated for safe execution.';
+      } else {
+        routingBox.className = 'routing-decision status-hitl';
+        title.innerText = 'STRUCTURAL HITL';
+        desc.innerText = 'TSCS < 0.75. Suspended for human review.';
+      }
+    }
+    calculate();
+  </script>
+</body>
+</html>

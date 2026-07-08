@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Rajneesh Kumar Verma">
+  <meta name="copyright" content="© 2026 Rajneesh Kumar Verma. Licensed under Apache 2.0.">
+  
+  <title>CredoAI Trust Engine | Master Control Plane</title>
+  <style>
+    /* Reset & Base Variables */
+    :root {
+      --bg-dark: #0F172A;
+      --bg-sidebar: #1E293B;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent: #38BDF8;
+      --border-color: #334155;
+      --hover-bg: #334155;
+      --status-green: #10B981;
+      --status-amber: #F59E0B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Sidebar Navigation with Collapse Animation */
+    .sidebar {
+      width: 290px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease;
+    }
+    .sidebar.collapsed {
+      width: 0;
+      border-right-color: transparent;
+    }
+    
+    /* Inner wrapper prevents text squishing during width transition */
+    .sidebar-inner {
+      width: 290px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      background-color: var(--bg-sidebar);
+      z-index: 10;
+    }
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .brand p {
+      font-size: 11px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+    
+    /* Collapsible Sections */
+    .nav-group {
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .nav-title {
+      padding: 0 20px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+      transition: color 0.2s;
+    }
+    .nav-title:hover {
+      color: #CBD5E1;
+    }
+    .nav-title::after {
+      content: '▼';
+      font-size: 9px;
+      transition: transform 0.2s ease;
+    }
+    .nav-group.collapsed .nav-title::after {
+      transform: rotate(-90deg);
+    }
+    .nav-group.collapsed .nav-link {
+      display: none;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      position: relative;
+    }
+    .nav-link:hover {
+      background-color: var(--hover-bg);
+      color: var(--accent);
+    }
+    .nav-link.active {
+      background-color: rgba(56, 189, 248, 0.1);
+      color: var(--accent);
+      border-left: 3px solid var(--accent);
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dot-live { background-color: var(--status-green); box-shadow: 0 0 4px var(--status-green); }
+
+    /* Custom Tooltip */
+    .portal-tooltip {
+      position: fixed;
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      transform: translateX(5px);
+      z-index: 9999;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+      max-width: 260px;
+      line-height: 1.5;
+      border: 1px solid #334155;
+    }
+    .portal-tooltip.visible { opacity: 1; transform: translateX(0); }
+    .portal-tooltip::before {
+      content: ''; position: absolute; top: 50%; left: -5px; transform: translateY(-50%);
+      border-width: 5px 5px 5px 0; border-style: solid; border-color: transparent #334155 transparent transparent;
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      background-color: #F8FAFC; 
+      min-width: 0; /* Prevents flex blowout */
+    }
+    .topbar {
+      height: 60px;
+      background-color: #fff;
+      border-bottom: 1px solid #E2E8F0;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      justify-content: space-between;
+      color: #0F172A;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .sidebar-toggle {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .sidebar-toggle:hover {
+      background: #F1F5F9;
+    }
+    .sidebar-toggle svg {
+      stroke: #64748B;
+      transition: stroke 0.2s;
+    }
+    .sidebar-toggle:hover svg {
+      stroke: #0F172A;
+    }
+
+    .topbar-title { font-size: 16px; font-weight: 600; }
+    .topbar-meta { font-size: 12px; color: #64748B; font-weight: 500; display: flex; gap: 12px; align-items: center; }
+
+    /* Interactive Badges */
+    .meta-badge { background: #D1FAE5; color: #059669; padding: 6px 12px; border-radius: 6px; border: 1px solid #A7F3D0; font-weight: 600; }
+    .meta-badge.interactive { cursor: pointer; transition: all 0.2s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .meta-badge.interactive:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 3px 6px rgba(0,0,0,0.08); border-color: #059669; }
+
+    /* Iframe Shell */
+    .iframe-container { flex-grow: 1; width: 100%; height: calc(100vh - 60px); }
+    iframe { width: 100%; height: 100%; border: none; background: #F8FAFC; }
+
+    /* --- ENTERPRISE IMAGE PAN/ZOOM MODAL --- */
+    .image-modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px);
+      display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; z-index: 10000;
+    }
+    .image-modal-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    .image-modal-header { padding: 16px 24px; background: linear-gradient(to bottom, rgba(15,23,42,0.9), transparent); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 10001; }
+    .image-modal-title { color: #F8FAFC; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .image-modal-controls { display: flex; gap: 8px; }
+    
+    .img-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #F8FAFC; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .img-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    
+    .image-viewport { flex-grow: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: grab; position: relative; }
+    .image-viewport:active { cursor: grabbing; }
+    
+    .image-modal-img { max-width: 90vw; max-height: 85vh; border-radius: 8px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); border: 1px solid #334155; background: #FFFFFF; transform-origin: center center; will-change: transform; user-select: none; }
+  /* FIND THIS in the <style> block: */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #F8FAFC;
+  min-width: 0;
+}
+
+/* ADD padding-bottom: */
+.main-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #F8FAFC;
+  min-width: 0;
+  padding-bottom: 32px;
+}
+  </style>
+</head>
+<body>
+
+  <div class="sidebar" id="app-sidebar">
+    <div class="sidebar-inner">
+      <div class="brand">
+        <h1>CredoAI Trust Engine</h1>
+        <p>Operational Control Plane</p>
+      </div>
+      <div class="nav-group">
+        <div class="nav-title" onclick="this.parentElement.classList.toggle('collapsed')">1. Governance & Context</div>
+         <a class="nav-link" data-desc="Continuous validation against Faithfulness > 0.90." onclick="loadPage('credoai_ragas_matrix.html', 'RAGAS Calibration Matrix', this)">
+          <span>RAGAS Calibration Matrix</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link" data-desc="Maps DPDPA, RBI, and EU AI Act constraints directly to architectural controls." onclick="loadPage('credoai_knowledge_model.html', 'Enterprise Knowledge Model', this)">
+          <span>Knowledge Model</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link active" data-desc="Defines functional, non-functional, and compliance constraints." onclick="loadPage('credoai_requirements_analysis.html', 'Requirements Baseline', this)">
+          <span>Requirements Baseline</span><span class="status-dot dot-live"></span>
+        </a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title" onclick="this.parentElement.classList.toggle('collapsed')">2. System Architecture</div>
+        <a class="nav-link" data-desc="Visualizes Azure India Central boundaries and protocols." onclick="loadPage('credoai_context_map.html', 'System Context Map', this)">
+          <span>Context Map (The Boundaries)</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link" data-desc="The immutable operational law of CredoAI: details decisions on gRPC, Outbox, etc." onclick="loadPage('credoai_adr_ledger.html', 'ADR Ledger', this)">
+          <span>ADR Ledger</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link" data-desc="Azure India Central boundaries and DPDPA Article 12 node tombstoning." onclick="loadPage('credoai_data_residency.html', 'Data Residency Topology', this)">
+          <span>Data Residency Topology</span><span class="status-dot dot-live"></span>
+        </a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title" onclick="this.parentElement.classList.toggle('collapsed')">3. Intelligent Orchestration</div>
+        <a class="nav-link" data-desc="Step-by-step transaction lifecycle from ingress to compensation." onclick="loadPage('credoai_workflow.html', 'Interactive Transaction Workflow', this)">
+          <span>E2E Workflow (The Execution)</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link" data-desc="Consent-Gated Temporal-Structural Confidence Score (TSCS)." onclick="loadPage('credoai_tscs_gate.html', 'TSCS Confidence Gate', this)">
+          <span>TSCS Confidence Gate</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link" data-desc="3-Agent Pod Architecture (Compliance, Retrieval, Audit) via MACA." onclick="loadPage('credoai_multiagent_state.html', 'Multi-Agent State Machine', this)">
+          <span>Multi-Agent State Machine</span><span class="status-dot dot-live"></span>
+        </a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title" onclick="this.parentElement.classList.toggle('collapsed')">4. Distributed Reliability</div>
+        <a class="nav-link" data-desc="Kafka topic partitioning, DLQ, and Saga compensation." onclick="loadPage('credoai_kafka_backbone.html', 'Kafka Event Backbone', this)">
+          <span>Kafka Event Backbone</span><span class="status-dot dot-live"></span>
+        </a>
+        <a class="nav-link" data-desc="W3C Traceparent combined with the RRAT Forensic Snapshot." onclick="loadPage('credoai_rrat_forensic_trace.html', 'RRAT Forensic Traceability', this)">
+          <span>RRAT Forensic Traceability</span><span class="status-dot dot-live"></span>
+        </a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title" onclick="this.parentElement.classList.toggle('collapsed')">5. Operational Lifecycle</div>
+        <a class="nav-link" data-desc="Maps the 9-phase deployment strategy." onclick="loadPage('credoai_dev_lifecycle.html', 'Development Lifecycle (SDLC)', this)">
+          <span>9-Phase SDLC</span><span class="status-dot dot-live"></span>
+        </a>
+
+      </div>
+
+      
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div class="topbar-title" id="current-view-title">Requirements Baseline</div>
+      </div>
+      
+      <div class="topbar-meta">
+        <span class="meta-badge interactive" onclick="window.launchImage('credoai_Sequence.png', 'Low Level Design')">LLD</span>
+        <span class="meta-badge interactive" onclick="window.launchImage('credoai_hld.png', 'High Level Design')">HLD</span>
+        <span class="meta-badge interactive" onclick="window.launchImage('credoai_Enterprise_Architecture.png', 'End-to-End Workflow')">Enterprise Architecture</span> 
+      </div>
+    </div>
+    
+    <div class="iframe-container">
+      <iframe id="portal-frame" src="credoai_requirements_analysis.html" title="CredoAI Portal Frame"></iframe>
+    </div>
+
+    <!-- Footer Copyright -->
+<div style="
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  background-color: #1E293B;
+  border-top: 1px solid #1E293B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #858b93;
+  letter-spacing: 0.5px;
+  z-index: 9999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+">
+  © 2026 Rajneesh Kumar Verma &nbsp;·&nbsp; 
+  CredoAI Trust Engine &nbsp;·&nbsp; 
+  Licensed under 
+  <a href="https://www.apache.org/licenses/LICENSE-2.0" 
+     target="_blank" 
+     style="color: #38BDF8; text-decoration: none; margin-left: 4px;">
+    Apache 2.0
+  </a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/rajneeshv-ai/credo-ai-trust-engine" 
+     target="_blank" 
+     style="color: #38BDF8; text-decoration: none; margin-left: 4px;">
+    github.com/rajneeshv-ai
+  </a>
+</div>
+  </div>
+
+  <div class="image-modal-overlay" id="arch-image-modal">
+    <div class="image-modal-header">
+      <div class="image-modal-title" id="arch-image-title">Diagram Title</div>
+      <div class="image-modal-controls">
+        <button class="img-btn" onclick="window.zoomImg(0.2)">+</button>
+        <button class="img-btn" onclick="window.zoomImg(-0.2)">-</button>
+        <button class="img-btn" onclick="window.resetImg()">&#x21bb;</button>
+        <button class="img-btn" onclick="window.closeImg()">&times;</button>
+      </div>
+    </div>
+    <div class="image-viewport" id="arch-viewport">
+      <img id="arch-image-src" class="image-modal-img" src="" alt="Architecture Diagram" draggable="false" />
+    </div>
+  </div>
+ <script src="credoai_adr_registry.js"></script>
+  <script>
+    // ---------------------------------------------------------
+    // SIDEBAR TOGGLE
+    // ---------------------------------------------------------
+    function toggleSidebar() {
+      document.getElementById('app-sidebar').classList.toggle('collapsed');
+    }
+
+    // ---------------------------------------------------------
+    // IFRAME & TOOLTIP ENGINE
+    // ---------------------------------------------------------
+    function loadPage(url, title, element) {
+      if(!url) return;
+      document.getElementById('portal-frame').src = url;
+      document.getElementById('current-view-title').innerText = title;
+      
+      const links = document.querySelectorAll('.nav-link');
+      links.forEach(link => link.classList.remove('active'));
+      element.classList.add('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const tooltip = document.createElement('div');
+      tooltip.className = 'portal-tooltip';
+      document.body.appendChild(tooltip);
+
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('mouseenter', (e) => {
+          const desc = e.currentTarget.getAttribute('data-desc');
+          if (desc) {
+            tooltip.textContent = desc;
+            const rect = e.currentTarget.getBoundingClientRect();
+            tooltip.style.top = (rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2)) + 'px';
+            tooltip.style.left = (rect.right + 15) + 'px'; 
+            tooltip.classList.add('visible');
+          }
+        });
+        link.addEventListener('mouseleave', () => {
+          tooltip.classList.remove('visible');
+        });
+      });
+    });
+
+    // ---------------------------------------------------------
+    // HARDWARE ACCELERATED PAN/ZOOM ENGINE
+    // ---------------------------------------------------------
+    const modal = document.getElementById('arch-image-modal');
+    const imgEl = document.getElementById('arch-image-src');
+    const titleEl = document.getElementById('arch-image-title');
+    const viewport = document.getElementById('arch-viewport');
+
+    let scale = 1, panning = false, pointX = 0, pointY = 0, startX = 0, startY = 0;
+
+    window.launchImage = function(path, title) {
+      imgEl.src = path;
+      titleEl.innerText = title;
+      modal.classList.add('active');
+      window.resetImg();
+    };
+
+    window.closeImg = function() {
+      modal.classList.remove('active');
+      setTimeout(() => { imgEl.src = ''; window.resetImg(); }, 200); 
+    };
+
+    window.resetImg = function() {
+      scale = 1; pointX = 0; pointY = 0;
+      updateTransform();
+    };
+
+    window.zoomImg = function(delta) {
+      scale += delta;
+      if (scale < 0.2) scale = 0.2; 
+      if (scale > 5) scale = 5;     
+      updateTransform();
+    };
+
+    function updateTransform() {
+      imgEl.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+    }
+
+    // Wheel to Zoom
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = (e.wheelDelta ? e.wheelDelta : -e.deltaY);
+      (delta > 0) ? window.zoomImg(0.15) : window.zoomImg(-0.15);
+    });
+
+    // Drag to Pan
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.target !== imgEl && e.target !== viewport) return;
+      e.preventDefault();
+      startX = e.clientX - pointX;
+      startY = e.clientY - pointY;
+      panning = true;
+    });
+
+    viewport.addEventListener('mouseup', () => { panning = false; });
+    viewport.addEventListener('mouseleave', () => { panning = false; });
+
+    viewport.addEventListener('mousemove', (e) => {
+      if (!panning) return;
+      e.preventDefault();
+      pointX = e.clientX - startX;
+      pointY = e.clientY - startY;
+      updateTransform();
+    });
+
+    // Background Click to Close
+    viewport.addEventListener('click', (e) => {
+      if (e.target === viewport) window.closeImg();
+    });
+
+    // Escape Key to Close
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) {
+        window.closeImg();
+      }
+    });
+  </script>
+ 
+</body>
+</html>

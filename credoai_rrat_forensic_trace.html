@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Rajneesh Kumar Verma">
+  <meta name="copyright" content="© 2026 Rajneesh Kumar Verma. Licensed under Apache 2.0.">
+  
+  <title>RRAT Forensic Traceability</title>
+  <style>
+    :root { --bg: #F8FAFC; --card-bg: #FFFFFF; --text-main: #0F172A; --text-muted: #64748B; --border: #E2E8F0; --accent: #185FA5; --success: #10B981; --net: #E0F2FE; --python: #EDE9FE; --infra: #DCFCE7; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text-main); padding: 32px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .header { margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+    .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; flex-grow: 1; min-height: 0; }
+    .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+    .panel-header { background: #F1F5F9; padding: 12px 16px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .waterfall-container { padding: 20px; overflow-y: auto; flex-grow: 1; }
+    .span-row { margin-bottom: 16px; opacity: 0.4; transition: opacity 0.3s; }
+    .span-row.active { opacity: 1; }
+    .span-meta { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: var(--text-muted); }
+    .span-bar-container { width: 100%; height: 26px; background: #F8FAFC; border: 1px solid var(--border); border-radius: 4px; position: relative; }
+    .span-bar { position: absolute; top: 0; height: 100%; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 600; }
+    .bar-net { background: #BAE6FD; } .bar-opa { background: #FECACA; } .bar-kafka { background: #DDD6FE; } .bar-py { background: #BBF7D0; } .bar-db { background: #FDE68A; }
+    .inspector-content { padding: 20px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 16px; }
+    .trace-header-box { background: #F8FAFC; border: 1px dashed #CBD5E1; padding: 16px; border-radius: 6px; }
+    .rrat-box { background: #0F172A; color: #34D399; font-family: monospace; font-size: 11px; padding: 16px; border-radius: 6px; flex-grow: 1; overflow-y: auto; }
+    button.btn { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    button.btn:disabled { background: #E2E8F0; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>RRAT Forensic Traceability</h1>
+    <p>Simulating Phase 2 RBI auditability. The W3C traceparent encapsulates the Regulatory Reasoning Audit Trail (RRAT) payload, establishing reasoning provenance.</p>
+  </div>
+  <div class="dashboard">
+    <div class="panel">
+      <div class="panel-header"><span>OpenTelemetry + RRAT Spans</span><button class="btn" id="btn-trigger" onclick="runTrace()">Inject Request</button></div>
+      <div class="waterfall-container">
+        <div class="span-row" id="span-1"><div class="span-meta"><span>Ingress (.NET 10)</span><span id="dur-1">0ms</span></div><div class="span-bar-container"><div class="span-bar bar-net" style="left:0%; width:100%;">Generate Trace ID</div></div></div>
+        <div class="span-row" id="span-2"><div class="span-meta"><span>Outbox (Kafka)</span><span id="dur-2">0ms</span></div><div class="span-bar-container"><div class="span-bar bar-kafka" style="left:10%; width:20%;">Inject Header</div></div></div>
+        <div class="span-row" id="span-3"><div class="span-meta"><span>MACA Pod (Python)</span><span id="dur-3">0ms</span></div><div class="span-bar-container"><div class="span-bar bar-py" style="left:30%; width:70%;">LangGraph Execution</div></div></div>
+        <div class="span-row" id="span-4"><div class="span-meta"><span>Audit Agent (RRAT)</span><span id="dur-4">0ms</span></div><div class="span-bar-container"><div class="span-bar bar-py" style="left:50%; width:30%;">Build Forensic Snapshot</div></div></div>
+        <div class="span-row" id="span-5"><div class="span-meta"><span>WORM Storage (Azure)</span><span id="dur-5">0ms</span></div><div class="span-bar-container"><div class="span-bar bar-db" style="left:80%; width:20%;">Commit Immutable Log</div></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span>Trace Payload Inspector</span><span id="status-badge" style="color: var(--accent);">IDLE</span></div>
+      <div class="inspector-content">
+        <div class="trace-header-box">
+          <strong style="font-size:12px;">Traceparent Header</strong><br>
+          <span id="trace-id" style="font-family:monospace; color:var(--accent);">00-WAITING-FOR-EXECUTION-01</span>
+        </div>
+        <div style="font-size: 12px; font-weight: 600;">Decoded RRAT Payload (Attached to Span):</div>
+        <pre class="rrat-box" id="rrat-payload">// Awaiting span execution...</pre>
+      </div>
+    </div>
+  </div>
+  <script>
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const genHex = len => [...Array(len)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+
+    async function runTrace() {
+      document.getElementById('btn-trigger').disabled = true;
+      document.getElementById('status-badge').innerText = 'TRACING...';
+      for(let i=1; i<=5; i++) { document.getElementById(`span-${i}`).classList.remove('active'); document.getElementById(`dur-${i}`).innerText = '0ms'; }
+      
+      const traceId = genHex(32);
+      document.getElementById('trace-id').innerText = `00-${traceId}-${genHex(16)}-01`;
+      document.getElementById('rrat-payload').innerText = "// Assembling payload...";
+
+      document.getElementById('span-1').classList.add('active'); await sleep(300); document.getElementById('dur-1').innerText = '12ms';
+      document.getElementById('span-2').classList.add('active'); await sleep(400); document.getElementById('dur-2').innerText = '45ms';
+      document.getElementById('span-3').classList.add('active'); await sleep(600); document.getElementById('dur-3').innerText = '850ms';
+      
+      document.getElementById('span-4').classList.add('active'); 
+      const rrat = {
+        "schema": "rrat_v1",
+        "trace_id": traceId,
+        "maca_consensus": { "compliance": 0.92, "retrieval": 0.88, "audit": 0.90, "delta": 0.04 },
+        "graphrag_provenance": [
+          { "node_id": "rbi_circ_882", "signature": "sha256:8f4a...", "lambda_age": 120 }
+        ],
+        "decision": "commit_to_ledger"
+      };
+      document.getElementById('rrat-payload').innerText = JSON.stringify(rrat, null, 2);
+      await sleep(300); document.getElementById('dur-4').innerText = '15ms';
+      
+      document.getElementById('span-5').classList.add('active'); await sleep(400); document.getElementById('dur-5').innerText = '32ms';
+      document.getElementById('status-badge').innerText = 'WORM COMMITTED';
+      document.getElementById('btn-trigger').disabled = false;
+    }
+  </script>
+</body>
+</html>

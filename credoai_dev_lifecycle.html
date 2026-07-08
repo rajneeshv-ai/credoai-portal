@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Rajneesh Kumar Verma">
+  <meta name="copyright" content="© 2026 Rajneesh Kumar Verma. Licensed under Apache 2.0.">
+  
+<title>CredoAI Development Lifecycle</title>
+<style>
+  :root {
+    --color-bg-primary: #F8FAFC;
+    --color-bg-secondary: #FFFFFF;
+    --color-text-primary: #0F172A;
+    --color-text-secondary: #475569;
+    --color-text-tertiary: #64748B;
+    --color-border-primary: #CBD5E1;
+    --color-border-secondary: #E2E8F0;
+    --color-accent: #0284C7;
+    --border-radius-md: 6px;
+    --border-radius-lg: 12px;
+  }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    overflow-y: auto;
+  }
+
+  /* Centered Timeline Layout */
+  .timeline-container {
+    max-width: 950px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  .lc { padding-bottom: 2rem; font-size: 13px; background: var(--color-bg-secondary); border: 1px solid var(--color-border-primary); border-radius: var(--border-radius-lg); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+  
+  .phase-row { display: grid; grid-template-columns: 140px 1fr; gap: 0; border-bottom: 1px solid var(--color-border-secondary); }
+  .phase-row:last-child { border-bottom: none; }
+  
+  .phase-label { padding: 24px 20px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; border-right: 1px solid var(--color-border-secondary); cursor: pointer; transition: background 0.2s; border-radius: var(--border-radius-lg) 0 0 0; }
+  .phase-row:last-child .phase-label { border-radius: 0 0 0 var(--border-radius-lg); }
+  .phase-label:hover { background: #F1F5F9; }
+  
+  .phase-num { font-size: 11px; color: var(--color-text-tertiary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .phase-name { font-size: 15px; font-weight: 600; color: var(--color-text-primary); line-height: 1.3; }
+  .phase-tag { font-size: 10px; padding: 4px 10px; border-radius: 20px; margin-top: 6px; font-weight: 600; }
+  
+  .activities { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .act-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .act { font-size: 12px; padding: 8px 14px; border-radius: 6px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; font-family: inherit; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .act:hover { opacity: 0.85; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+  
+  .gate { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: var(--border-radius-md); font-size: 12px; border: 1px dashed var(--color-border-primary); background: #F8FAFC; margin-top: 6px; cursor: pointer; transition: background 0.2s; }
+  .gate:hover { background: #F1F5F9; border-style: solid; }
+  .gate-icon { font-size: 16px; color: var(--color-text-tertiary); margin-top: 1px; }
+  .gate-label { font-weight: 600; color: var(--color-text-primary); margin-bottom: 2px; }
+  .gate-sub { color: var(--color-text-tertiary); font-size: 11px; line-height: 1.4; }
+  
+  .arrow-down { text-align: center; padding: 0; color: #94A3B8; font-size: 20px; line-height: 1; height: 30px; display: flex; align-items: center; justify-content: center; background: var(--color-bg-primary); }
+
+  /* Interactive Modal Overlay */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 9999;
+    padding: 20px;
+  }
+  .modal-overlay.active {
+    opacity: 1; pointer-events: auto;
+  }
+
+  .modal-content {
+    background: var(--color-bg-secondary);
+    width: 100%; max-width: 850px; max-height: 90vh;
+    border-radius: var(--border-radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    display: flex; flex-direction: column;
+    transform: translateY(15px) scale(0.98);
+    transition: transform 0.2s ease;
+    overflow: hidden;
+    position: relative;
+  }
+  .modal-overlay.active .modal-content {
+    transform: translateY(0) scale(1);
+  }
+
+  .modal-header { padding: 24px 32px; border-bottom: 1px solid var(--color-border-secondary); background: #F8FAFC; position: relative; }
+  .modal-close { position: absolute; top: 16px; right: 16px; background: transparent; border: none; font-size: 24px; color: var(--color-text-tertiary); cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.15s; }
+  .modal-close:hover { background: #E2E8F0; color: #0F172A; }
+  
+  .insp-category { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--color-text-tertiary); margin-bottom: 8px; display: inline-block; padding: 4px 10px; background: #E2E8F0; border-radius: 12px; }
+  .insp-title { font-size: 22px; font-weight: 700; color: var(--color-text-primary); line-height: 1.3; margin-bottom: 12px; }
+  .insp-summary { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; }
+  
+  .modal-body { padding: 32px; overflow-y: auto; flex-grow: 1; }
+  
+  .meta-block { border: 1px solid var(--color-border-secondary); border-radius: 8px; padding: 20px; margin-bottom: 24px; background: #F8FAFC; }
+  .meta-title { font-size: 11px; font-weight: 700; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; border-bottom: 1px solid var(--color-border-secondary); padding-bottom: 6px; }
+  .meta-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .meta-tag { font-size: 12px; font-weight: 500; padding: 4px 12px; background: #FFFFFF; border: 1px solid var(--color-border-primary); border-radius: 4px; color: var(--color-text-primary); }
+  
+  .detail-section { margin-bottom: 24px; }
+  .detail-section h4 { font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 12px; }
+  .detail-list { list-style: none; }
+  .detail-list li { position: relative; padding-left: 20px; font-size: 14px; color: var(--color-text-secondary); margin-bottom: 10px; line-height: 1.6; }
+  .detail-list li::before { content: "•"; position: absolute; left: 0; color: var(--color-accent); font-weight: bold; font-size: 16px; }
+
+  /* Track Colors */
+  .bg-define { background: #E0F2FE; color: #0369A1; }
+  .bg-design { background: #EDE9FE; color: #5B21B6; }
+  .bg-data { background: #DCFCE7; color: #166534; }
+  .bg-build-net { background: #FFEDD5; color: #9A3412; }
+  .bg-build-py { background: #F3E8FF; color: #7E22CE; }
+  .bg-build-gov { background: #FEE2E2; color: #991B1B; }
+  .bg-evolve { background: #F1F5F9; color: #334155; }
+</style>
+</head>
+<body>
+
+<div class="timeline-container">
+
+  <div class="lc">
+    
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 1')">
+        <span class="phase-num">Phase 1</span>
+        <span class="phase-name">Analysis &amp; Requirements</span>
+        <span class="phase-tag bg-define">Define</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-define" onclick="openModal('Regulatory mapping')">Regulatory mapping (DPDPA · RBI · EU)</button>
+          <button class="act bg-define" onclick="openModal('BFSI use case identification')">BFSI use case identification</button>
+          <button class="act bg-define" onclick="openModal('Threat modelling')">Threat modelling</button>
+          <button class="act bg-define" onclick="openModal('ADR drafting')">ADR drafting</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 1')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: Compliance Sign-off</div><div class="gate-sub">OPA policy skeleton · data residency confirmed · threat model reviewed</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 2')">
+        <span class="phase-num">Phase 2</span>
+        <span class="phase-name">Architecture &amp; Design</span>
+        <span class="phase-tag bg-design">Design</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-design" onclick="openModal('ADRs finalised')">ADR-001 to ADR-005 finalised</button>
+          <button class="act bg-design" onclick="openModal('5-tier architecture spec')">5-tier architecture spec</button>
+          <button class="act bg-design" onclick="openModal('gRPC Protobuf contracts')">gRPC Protobuf contracts</button>
+          <button class="act bg-design" onclick="openModal('OPA Rego policy design')">OPA Rego policy design</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-design" onclick="openModal('Outbox schema')">Outbox + Saga schema</button>
+          <button class="act bg-design" onclick="openModal('Neo4j schema')">Neo4j graph schema</button>
+          <button class="act bg-design" onclick="openModal('RAGAS eval baseline')">RAGAS eval baseline</button>
+          <button class="act bg-design" onclick="openModal('Confidence gate threshold plan')">Confidence gate threshold plan</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 2')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: Architecture Review Board</div><div class="gate-sub">All ADRs approved · Protobuf contracts signed off · OPA policy peer-reviewed</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 3')">
+        <span class="phase-num">Phase 3</span>
+        <span class="phase-name">Data &amp; Knowledge Setup</span>
+        <span class="phase-tag bg-data">Data</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('RBI corpus ingestion')">RBI corpus ingestion (.NET 10 Worker)</button>
+          <button class="act bg-data" onclick="openModal('Presidio PII scrubbing pipeline')">Presidio PII scrubbing pipeline</button>
+          <button class="act bg-data" onclick="openModal('Neo4j AuraDB graph build')">Neo4j AuraDB graph build</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('Azure AI Search Index setup')">Azure AI Search Index setup</button>
+          <button class="act bg-data" onclick="openModal('Tenant partitioning schema')">Tenant partitioning schema</button>
+          <button class="act bg-data" onclick="openModal('Outbox table migration')">Outbox table migration</button>
+          <button class="act bg-data" onclick="openModal('WORM audit log config')">WORM audit log config</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 3')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: Data Residency Verified</div><div class="gate-sub">PII never leaves Azure India Central · graph density baseline measured · DPDPA Article 6 confirmed</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 4')">
+        <span class="phase-num">Phase 4</span>
+        <span class="phase-name">Development Sprints</span>
+        <span class="phase-tag bg-build-net">Build</span>
+      </div>
+      <div class="activities">
+        <div class="act-row"><span style="font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase">Track A — .NET</span></div>
+        <div class="act-row">
+          <button class="act bg-build-net" onclick="openModal('.NET 10 ingestion service')">.NET 10 Ingestion service</button>
+          <button class="act bg-build-net" onclick="openModal('Transactional Outbox implementation')">Transactional Outbox</button>
+          <button class="act bg-build-net" onclick="openModal('Azure APIM + OAuth 2.0')">Azure APIM + OAuth 2.0</button>
+          <button class="act bg-build-net" onclick="openModal('gRPC bridge')">gRPC bridge</button>
+        </div>
+        
+        <div class="act-row" style="margin-top:10px"><span style="font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase">Track B — Python / AI</span></div>
+        <div class="act-row">
+          <button class="act bg-build-py" onclick="openModal('LangGraph state machine')">LangGraph state machine</button>
+          <button class="act bg-build-py" onclick="openModal('GraphRAG confidence gate')">GraphRAG confidence gate</button>
+          <button class="act bg-build-py" onclick="openModal('NeMo Guardrails nodes')">NeMo Guardrails nodes</button>
+          <button class="act bg-build-py" onclick="openModal('HITL workbench')">HITL workbench</button>
+        </div>
+        
+        <div class="act-row" style="margin-top:10px"><span style="font-size:11px;color:#64748B;font-weight:700;text-transform:uppercase">Track C — Governance</span></div>
+        <div class="act-row">
+          <button class="act bg-build-gov" onclick="openModal('OPA Rego policies')">OPA Rego policies</button>
+          <button class="act bg-build-gov" onclick="openModal('Kafka + DLQ + Saga')">Kafka + DLQ + Saga</button>
+          <button class="act bg-build-gov" onclick="openModal('OpenTelemetry W3C trace')">OpenTelemetry W3C trace</button>
+          <button class="act bg-build-gov" onclick="openModal('RBAC deletion propagation')">RBAC deletion propagation</button>
+        </div>
+        
+        <div class="gate" onclick="openModal('Phase 4')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: Sprint Definition of Done</div><div class="gate-sub">Unit tests green · ADR compliance checked · OPA policy unit tests pass · Protobuf contracts compile</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 5')">
+        <span class="phase-num">Phase 5</span>
+        <span class="phase-name">AI Evaluation &amp; Calibration</span>
+        <span class="phase-tag bg-build-py">Evaluate</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-build-py" onclick="openModal('Confidence threshold calibration')">Confidence threshold calibration (P-R curve on RBI corpus)</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-build-py" onclick="openModal('RAGAS benchmark suite')">RAGAS benchmark suite</button>
+          <button class="act bg-build-py" onclick="openModal('Faithfulness evaluation')">Faithfulness target > 0.90</button>
+          <button class="act bg-build-py" onclick="openModal('Answer relevance')">Answer relevance > 0.85</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-build-py" onclick="openModal('Context precision')">Context precision > 0.85</button>
+          <button class="act bg-build-py" onclick="openModal('Hallucination detection sweep')">Hallucination detection sweep</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-build-py" onclick="openModal('Ollama local dev validation')">Ollama local dev validation</button>
+          <button class="act bg-build-py" onclick="openModal('Azure OpenAI production swap')">Azure OpenAI production swap</button>
+          <button class="act bg-build-py" onclick="openModal('HITL routing accuracy test')">HITL routing accuracy test</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 5')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: AI Quality Sign-off</div><div class="gate-sub">All RAGAS targets met · 0.75 threshold validated at 87% precision · HITL escalation rate within expected range</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 6')">
+        <span class="phase-num">Phase 6</span>
+        <span class="phase-name">Security &amp; Compliance Audit</span>
+        <span class="phase-tag bg-build-gov">Audit</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-build-gov" onclick="openModal('OPA policy penetration test')">OPA policy penetration test</button>
+          <button class="act bg-build-gov" onclick="openModal('DPDPA Article 12 Tombstone Drill')">DPDPA Article 12 erasure drill</button>
+          <button class="act bg-build-gov" onclick="openModal('Prompt injection red team')">Prompt injection red team</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-build-gov" onclick="openModal('Tenant isolation test')">Tenant isolation test (cross-tenant query)</button>
+          <button class="act bg-build-gov" onclick="openModal('Audit log reconstruction')">Audit log reconstruction drill</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-build-gov" onclick="openModal('WORM immutability check')">WORM immutability check</button>
+          <button class="act bg-build-gov" onclick="openModal('Private endpoint egress audit')">Private endpoint egress audit</button>
+          <button class="act bg-build-gov" onclick="openModal('EU AI Act Article 14 HITL verify')">EU AI Act Article 14 HITL verify</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-build-gov" onclick="openModal('mTLS certificate rotation test')">mTLS certificate rotation test</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 6')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: Compliance Certification</div><div class="gate-sub">Zero critical findings · DPDPA checklist signed · RBI IT Governance 2024 evidence package ready</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 7')">
+        <span class="phase-num">Phase 7</span>
+        <span class="phase-name">Integration &amp; Staging</span>
+        <span class="phase-tag bg-data">Test</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('End-to-end PATH flow test')">End-to-end PATH A + PATH B flow test</button>
+          <button class="act bg-data" onclick="openModal('Outbox -> Kafka replay test')">Outbox → Kafka replay test</button>
+          <button class="act bg-data" onclick="openModal('Saga compensation drill')">Saga compensation drill</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('DLQ max-retry escalation test')">DLQ max-retry escalation test</button>
+          <button class="act bg-data" onclick="openModal('W3C trace continuity check')">W3C trace continuity check</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('Load test')">Load test (NFR baseline)</button>
+          <button class="act bg-data" onclick="openModal('Chaos engineering')">Chaos engineering (pod crash)</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 7')">
+          <span class="gate-icon">▶</span>
+          <div><div class="gate-label">Gate: Staging Sign-off</div><div class="gate-sub">Zero state drift under chaos · trace continuity 100% · NFR SLA targets met · Saga compensation verified</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+    
+    <div class="phase-row">
+      <div class="phase-label" onclick="openModal('Phase 8')">
+        <span class="phase-num">Phase 8</span>
+        <span class="phase-name">Production Deployment</span>
+        <span class="phase-tag bg-data">Ship</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('Blue-green deploy')">Blue-green deploy (.NET service)</button>
+          <button class="act bg-data" onclick="openModal('State-aware Canary')">Canary rollout (LangGraph agent)</button>
+          <button class="act bg-data" onclick="openModal('OPA policy hot-reload verify')">OPA policy hot-reload verify</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('Azure Monitor alert rules live')">Azure Monitor alert rules live</button>
+          <button class="act bg-data" onclick="openModal('RAGAS eval pipeline scheduled')">RAGAS eval pipeline scheduled</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-data" onclick="openModal('Runbook published')">Runbook published</button>
+          <button class="act bg-data" onclick="openModal('Stakeholder comms sent')">Stakeholder comms sent</button>
+        </div>
+        <div class="gate" onclick="openModal('Phase 8')" style="border-color: #10B981; background: #ECFDF5;">
+          <span class="gate-icon" style="color: #10B981;">✓</span>
+          <div><div class="gate-label" style="color: #065F46;">Production Live</div><div class="gate-sub" style="color: #047857;">All telemetry green · compliance dashboard live · on-call rotation confirmed</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down"></div>
+
+    <div class="phase-row" style="border-bottom:none">
+      <div class="phase-label" onclick="openModal('Phase 9')">
+        <span class="phase-num">Phase 9</span>
+        <span class="phase-name">Continuous Improvement</span>
+        <span class="phase-tag bg-evolve">Evolve</span>
+      </div>
+      <div class="activities">
+        <div class="act-row">
+          <button class="act bg-evolve" onclick="openModal('RAGAS score monitoring')">RAGAS score monitoring (weekly)</button>
+          <button class="act bg-evolve" onclick="openModal('Confidence threshold recalibration')">Confidence threshold recalibration</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-evolve" onclick="openModal('OPA policy updates')">OPA policy updates (new RBI circulars)</button>
+          <button class="act bg-evolve" onclick="openModal('Knowledge graph enrichment')">Knowledge graph enrichment</button>
+        </div>
+        <div class="act-row">
+          <button class="act bg-evolve" onclick="openModal('HITL feedback loop review')">HITL feedback loop review</button>
+          <button class="act bg-evolve" onclick="openModal('Model swap evaluation')">Model swap evaluation (new LLMs)</button>
+          <button class="act bg-evolve" onclick="openModal('Dissertation benchmark updates')">Dissertation benchmark updates</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="context-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <div id="modal-category" class="insp-category"></div>
+      <div id="modal-title" class="insp-title"></div>
+      <div id="modal-summary" class="insp-summary"></div>
+    </div>
+    <div class="modal-body" id="modal-body-content">
+      </div>
+  </div>
+</div>
+
+<script src="credoai_adr_registry.js"></script>
+
+<script>
+  // Embedded Enterprise Knowledge Base with Upgraded Taxonomy
+  const kb = {
+    // PHASES
+    "Phase 1": {
+      category: "Lifecycle Milestone", title: "Analysis & Requirements",
+      summary: "Define governance obligations, enterprise workflows, risks, and architecture baselines before a single line of code is written.",
+      stakeholders: ["Chief Compliance Officer", "CISO", "Regulators"],
+      tech: ["DPDPA 2023", "RBI IT Governance 2024", "EU AI Act"],
+      sections: [
+        { title: "Phase Objective", items: ["Map legal constraints directly to architecture capabilities.", "Identify all critical distributed systems threats.", "Ensure data residency boundaries are physically mapped."] }
+      ]
+    },
+    "Phase 2": {
+      category: "Lifecycle Milestone", title: "Architecture & Design",
+      summary: "Translate requirements into governed architecture specifications and immutable Architecture Decision Records (ADRs).",
+      stakeholders: ["Chief Architect", "Platform Engineering", "Security Board"],
+      tech: ["gRPC/Protobuf", "OPA Rego", "Neo4j Schema"],
+      sections: [
+        { title: "Critical Outputs", items: ["ADR-001 to ADR-007 locked in Git.", "Polyglot boundary strictly defined via gRPC.", "State migration strategy for LangGraph checkpoints established."] }
+      ]
+    },
+    "Phase 3": {
+      category: "Lifecycle Milestone", title: "Data & Knowledge Setup",
+      summary: "Prepare the governed enterprise data and GraphRAG knowledge systems in a secure, isolated environment.",
+      stakeholders: ["Data Engineering", "Compliance", "Cloud Ops"],
+      tech: ["Azure India Central", "Presidio", "Neo4j AuraDB"],
+      sections: [
+        { title: "Compliance Guardrails", items: ["Raw data must pass Presidio PII scrubbing before entering the graph.", "Azure Private Endpoints enforced; no public internet egress."] }
+      ]
+    },
+    "Phase 4": {
+      category: "Lifecycle Milestone", title: "Development Sprints",
+      summary: "Implement AI orchestration, governance, and reliability systems across isolated development tracks.",
+      stakeholders: ["Backend Engineering", "AI/ML Teams", "Platform Engineering"],
+      tech: [".NET 10", "Python 3.12", "Kafka", "LangGraph"],
+      sections: [
+        { title: "Execution Strategy", items: ["Track A: Deterministic ingestion and async event publishing.", "Track B: Probabilistic AI reasoning and state management.", "Track C: Security enforcement and distributed tracing."] }
+      ]
+    },
+    "Phase 5": {
+      category: "Lifecycle Milestone", title: "AI Evaluation & Calibration",
+      summary: "Calibrate AI quality, uncertainty routing, and governance thresholds under active adversarial pressure.",
+      stakeholders: ["Data Science Lead", "CISO", "Red Team"],
+      tech: ["RAGAS", "NeMo Guardrails", "OPA"],
+      sections: [
+        { title: "Evaluation Gates", items: ["Must meet RAGAS targets (Faithfulness ≥ 0.90).", "0.75 GraphRAG confidence threshold validated against RBI ground truth."] }
+      ]
+    },
+    "Phase 6": {
+      category: "Lifecycle Milestone", title: "Security & Compliance Audit",
+      summary: "Audit governance, security, and compliance enforcement to produce the required evidence package.",
+      stakeholders: ["Compliance Officers", "External Auditors"],
+      tech: ["WORM Storage", "Azure Monitor"],
+      sections: [
+        { title: "Audit Verification", items: ["DPDPA Article 12 data tombstoning confirmed without corrupting graph topology.", "Trace logs reconstructed within the 60-second RBI SLA."] }
+      ]
+    },
+    "Phase 7": {
+      category: "Lifecycle Milestone", title: "Integration & Staging",
+      summary: "Validate distributed reliability and operational consistency under chaotic network conditions.",
+      stakeholders: ["SRE Teams", "QA Automation"],
+      tech: ["Chaos Mesh", "Kafka DLQ"],
+      sections: [
+        { title: "Resilience Testing", items: ["Verify zero polyglot state drift when LangGraph pods are randomly terminated.", "Validate Saga compensation correctly unwinds partial transactions."] }
+      ]
+    },
+    "Phase 8": {
+      category: "Lifecycle Milestone", title: "Production Deployment",
+      summary: "Deploy governed AI infrastructure safely into the live Azure India Central environment.",
+      stakeholders: ["Operations", "Platform Engineering", "Data Science"],
+      tech: ["Kubernetes", "Azure App Insights"],
+      sections: [
+        { title: "Operational Execution", items: ["State-aware canary rollout ensuring in-flight LangGraph checkpoints are migrated.", "Blue-Green deployment for .NET 10 deterministic services."] }
+      ]
+    },
+    "Phase 9": {
+      category: "Lifecycle Milestone", title: "Continuous Improvement",
+      summary: "Monitor live telemetry and dynamically evolve the platform against new RBI circulars.",
+      stakeholders: ["Data Science", "Platform Engineering"],
+      tech: ["RAGAS", "Neo4j"],
+      sections: [
+        { title: "Evolution Cycles", items: ["Continuous RAGAS monitoring triggers automatic alerts if Faithfulness dips.", "Model swap evaluation pipeline for migrating to future sovereign LLMs."] }
+      ]
+    },
+    
+    // SPECIFIC HIGHLIGHTED ACTIVITIES (Examples that have deep content)
+    "Regulatory mapping": {
+      category: "Phase 1 · Analysis & Requirements", title: "Regulatory mapping (DPDPA · RBI · EU AI Act)",
+      summary: "Defines the external laws and constraints that CredoAI must satisfy architecturally.",
+      stakeholders: ["Chief Compliance Officer", "CISO"],
+      adrs: adrLabels(['001', '005']),
+      tech: ["OPA", "Azure Private Endpoints"],
+      sections: [
+        { title: "DPDPA 2023 Obligations", items: ["Purpose limitation and consent-bound processing.", "Mandatory data minimization for AI workflows.", "Right-to-erasure propagation requirements."] },
+        { title: "RBI Governance", items: ["Immutable audit logging.", "Human oversight for regulated workflows."] }
+      ]
+    },
+    "gRPC Protobuf contracts": {
+      category: "Phase 2 · Architecture & Design", title: "gRPC Protobuf Contract Design",
+      responsibility: "Polyglot Interface Governance",
+      summary: "Establishing the strict, statically typed boundary between the C# banking ledger and the Python AI runtime.",
+      stakeholders: ["Backend Engineering", "AI/ML Teams"],
+      adrs: adrLabels(['003']),
+      tech: [".NET 10", "Python 3.12", "Protocol Buffers"],
+      sections: [
+        { title: "Design Rationale", items: ["Prevents schema drift between polyglot services.", "Eliminates JSON serialization overhead.", "Forces AI payloads to conform to banking expectations."] }
+      ],
+      insight: "REST allows schema drift and silent serialization failures. By enforcing Protobuf between C# and Python, we shift integration errors from runtime to compile time, mathematically proving the boundary contract before deployment."
+    },
+    "GraphRAG confidence gate": {
+      category: "Phase 4 · Development Sprints", title: "GraphRAG Confidence Gate Logic",
+      responsibility: "Structural Uncertainty Quantification",
+      summary: "Implementing the core research algorithm that quantifies uncertainty based on subgraph topological density.",
+      stakeholders: ["AI Research", "Compliance Officers"],
+      adrs: adrLabels(['004']),
+      tech: ["LangGraph", "Neo4j", "Python"],
+      sections: [
+        { title: "Routing Logic", items: ["Calculate density: 2|E| / |V|(|V|-1).", "If Score >= 0.75: Execute autonomously.", "If Score < 0.75: Deterministically route to HITL Workbench."] }
+      ],
+      insight: "LLM logits are probabilistic and legally indefensible. By calculating subgraph topology density, we create a deterministic mathematical threshold (0.75) that forces human review when the AI lacks sufficient regulatory context."
+    },
+    "Transactional Outbox implementation": {
+      category: "Phase 4 · Development Sprints", title: "Transactional Outbox Implementation",
+      responsibility: "Distributed State Consistency",
+      summary: "Writing the business state and the Kafka event to the PostgreSQL database in a single atomic transaction.",
+      stakeholders: ["Platform Engineering", "SRE Teams"],
+      adrs: adrLabels(['002']),
+      tech: [".NET 10 Entity Framework", "PostgreSQL", "Kafka"],
+      sections: [
+        { title: "Reliability Guarantee", items: ["Guarantees zero state drift between the SQL ledger and the event stream.", "Allows event replay if the Python consumer crashes."] }
+      ],
+      insight: "Without the Outbox pattern, a network partition between the PostgreSQL commit and the Kafka publish results in silent state drift. The Outbox guarantees atomicity—the business state and the event are written to the exact same disk sector simultaneously."
+    },
+    "OPA policy penetration test": {
+      category: "Phase 6 · Security & Compliance Audit", title: "OPA Policy Penetration Test",
+      responsibility: "Zero-Trust Boundary Validation",
+      summary: "Adversarial testing against the Open Policy Agent to ensure it fails-closed under active attack.",
+      stakeholders: ["Red Team", "CISO"],
+      adrs: adrLabels(['001']),
+      tech: ["Rego", "Postman", "Burp Suite"],
+      sections: [
+        { title: "Test Scenarios", items: ["Attempting cross-tenant data access.", "Bypassing DPDPA purpose-binding JWT claims.", "Flooding PDP with malformed evaluation requests."] }
+      ],
+      insight: "We do not test if the LLM refuses a prompt; we test if OPA structurally denies the payload before the AI runtime is even invoked. This proves compliance is architectural, not heuristic."
+    },
+    "State-aware Canary": {
+      category: "Phase 8 · Production Deployment", title: "State-aware Canary Rollout",
+      responsibility: "Zero-Downtime Stateful Deployment",
+      summary: "Deploying a new version of the LangGraph agent while migrating active, suspended checkpoints from v1.",
+      stakeholders: ["SRE Teams", "AI/ML Teams"],
+      adrs: adrLabels(['005']),
+      tech: ["LangGraph Checkpoint Saver", "Kubernetes"],
+      sections: [
+        { title: "Operational Risk", items: ["If state schema changes between versions, suspended HITL workflows will crash on resume.", "Requires strict schema versioning in PostgreSQL checkpoint table."] }
+      ],
+      insight: "Deploying a stateless service is trivial. Deploying a new LangGraph agent version requires migrating active, in-flight checkpoint schemas in the PostgreSQL backend. The Canary validates this state migration without corrupting active tenant workflows."
+    },
+    ".NET 10 ingestion service": {
+      category: "Phase 4 · Development Sprints", title: ".NET 10 Enterprise Ingress",
+      responsibility: "Secure API Boundary & Transactional Consistency",
+      summary: "The deterministic front-door for all CredoAI traffic. The Python AI layer is strictly isolated from the enterprise network.",
+      stakeholders: ["Platform Engineering", "CISO"],
+      adrs: adrLabels(['003', '002']),
+      tech: [".NET 10 API Gateway", "Entity Framework Core", "gRPC"],
+      sections: [
+        { title: "Execution Logic", items: ["Terminates HTTPS/REST and validates initial OAuth 2.0 / JWT payloads.", "Executes the atomic Transactional Outbox commit before invoking the LangGraph agent."] }
+      ],
+      insight: "By placing .NET 10 in front of Python 3.13, we rely on a mature, multithreaded, strongly-typed garbage collector for network IO and Auth, leaving Python to execute single-threaded AI orchestration."
+    },
+    "Presidio PII scrubbing pipeline": {
+      category: "Phase 3 · Data & Knowledge Setup", title: "Data Minimization Pipeline",
+      responsibility: "DPDPA Article 8 Enforcement",
+      summary: "A mandatory interceptor that masks or removes Personally Identifiable Information before it is embedded into the Neo4j Graph.",
+      stakeholders: ["Chief Compliance Officer", "Data Engineering"],
+      adrs: adrLabels(['001']),
+      tech: ["Microsoft Presidio", "Azure Private Link"],
+      sections: [
+        { title: "Compliance Controls", items: ["Executes NER (Named Entity Recognition) to identify Aadhaar, PAN, and financial account numbers.", "Replaces entities with format-preserving anonymized tokens."] }
+      ],
+      insight: "If Presidio fails, the pipeline fails-closed. An empty or malformed PII check structurally halts the ingestion rather than risking DPDPA Article 17 (Data Residency) exposure."
+    },
+    "Saga compensation drill": {
+      category: "Phase 7 · Integration & Staging", title: "Distributed Compensation Drill",
+      responsibility: "Polyglot State Reconciliation",
+      summary: "Active validation that partial transaction failures in the Python AI layer correctly trigger rollback logic in the .NET 10 SQL ledger.",
+      stakeholders: ["SRE Teams", "Backend Engineering"],
+      adrs: adrLabels(['006']),
+      tech: ["Kafka DLQ", ".NET 10 Background Worker", "Chaos Mesh"],
+      sections: [
+        { title: "Testing Protocol", items: ["Inject network partitions between LangGraph and Azure OpenAI mid-workflow.", "Verify the Dead Letter Queue (DLQ) escalates the timeout event."] }
+      ],
+      insight: "This drill proves we do not need blocking Two-Phase Commits (2PC) between C# and Python. Eventual consistency is achieved safely via deterministic compensation."
+    }
+  };
+
+  // Dynamically catch any unmapped buttons and format them beautifully based on their Phase context
+  function getFallbackData(title) {
+    return {
+      category: "Execution Task", title: title,
+      summary: `Standard operational execution procedure for ${title}.`,
+      stakeholders: ["Assigned Engineering Pod", "Platform Architect"],
+      tech: ["CredoAI Core Stack"],
+      sections: [{ title: "Execution Parameters", items: ["Strict adherence to ADR guidelines required.", "Mandatory automated testing gate prior to phase completion."] }]
+    };
+  }
+
+  const modalOverlay = document.getElementById('context-modal');
+
+  function openModal(key) {
+    const data = kb[key] || getFallbackData(key);
+    
+    document.getElementById('modal-category').innerText = data.category;
+    document.getElementById('modal-title').innerText = data.title;
+    document.getElementById('modal-summary').innerText = data.summary;
+    
+    const bodyContent = document.getElementById('modal-body-content');
+    
+    // Generate Metadata Badges
+   let metaHTML = '';
+    
+    if (data.responsibility) {
+        metaHTML += `
+          <div style="margin-bottom: 16px;">
+            <div class="meta-title">Domain Responsibility</div>
+            <div class="meta-tags">
+              <span class="meta-tag" style="background: #E0F2FE; color: #0369A1; border-color: #BAE6FD;">
+                ${data.responsibility}
+              </span>
+            </div>
+          </div>`;
+    }
+
+    const addMeta = (title, items) => {
+      if (items && items.length) {
+        metaHTML += `
+          <div style="margin-bottom: 16px;">
+            <div class="meta-title">${title}</div>
+            <div class="meta-tags">
+              ${items.map(i => `<span class="meta-tag">${i}</span>`).join('')}
+            </div>
+          </div>`;
+      }
+    };
+    
+    addMeta("Stakeholders", data.stakeholders);
+    addMeta("Related ADRs", data.adrs);
+    addMeta("Technologies", data.tech);
+
+    // Generate Sections
+    let sectionsHTML = '';
+    if (data.sections) {
+      sectionsHTML = data.sections.map(sec => `
+        <div class="detail-section">
+          <h4>${sec.title}</h4>
+          <ul class="detail-list">
+            ${sec.items.map(item => `<li>${item}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
+    // Generate Insight
+    let insightHTML = '';
+    if (data.insight) {
+        insightHTML = `
+        <div style="margin-top: 24px; padding: 16px; background: linear-gradient(to right, #0F172A, #1E293B); border-radius: 8px; color: #F8FAFC;">
+            <h4 style="font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #38BDF8; margin-bottom: 8px;">Architectural Insight</h4>
+            <p style="font-size: 13px; line-height: 1.6; color: #CBD5E1;">${data.insight}</p>
+        </div>`;
+    }
+
+    bodyContent.innerHTML = `
+      ${metaHTML ? `<div class="meta-block">${metaHTML}</div>` : ''}
+      ${sectionsHTML}
+      ${insightHTML}
+    `;
+
+    // Update URL Hash
+    if(history.pushState) {
+        history.pushState(null, null, '#' + encodeURIComponent(key));
+    } else {
+        location.hash = '#' + encodeURIComponent(key);
+    }
+
+    modalOverlay.classList.add('active');
+  }
+
+  function closeModal() {
+    modalOverlay.classList.remove('active');
+    if(history.pushState) {
+        history.pushState(null, null, ' ');
+    } else {
+        location.hash = '';
+    }
+  }
+
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalOverlay.classList.contains('active')) closeModal();
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    let currentHash = window.location.hash.substring(1); 
+    if (currentHash) {
+      setTimeout(() => { openModal(decodeURIComponent(currentHash)); }, 100);
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    let newHash = window.location.hash.substring(1);
+    if (newHash) openModal(decodeURIComponent(newHash));
+    else closeModal();
+  });
+</script>
+
+</body>
+</html>

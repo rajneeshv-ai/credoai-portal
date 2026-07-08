@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Rajneesh Kumar Verma">
+  <meta name="copyright" content="© 2026 Rajneesh Kumar Verma. Licensed under Apache 2.0.">
+  <title>System Context Map | CredoAI v2</title>
+  <style>
+    :root {
+      --bg: #F8FAFC; --card-bg: #FFFFFF; --text-main: #0F172A;
+      --text-muted: #64748B; --border: #E2E8F0; --accent: #185FA5;
+      --success: #10B981; --danger: #EF4444; --warning: #F59E0B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { background: var(--bg); color: var(--text-main); padding: 20px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    .header { margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .header-left h1 { font-size: 18px; font-weight: 700; margin-bottom: 3px; }
+    .header-left p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .phase-toggle { display: flex; gap: 6px; flex-shrink: 0; }
+    .phase-btn { font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: var(--text-muted); transition: all .15s; }
+    .phase-btn.active { background: #185FA5; color: #fff; border-color: #185FA5; }
+
+    .dashboard { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; flex-grow: 1; min-height: 0; }
+    .panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.03); }
+    .panel-header { background: #F1F5F9; padding: 9px 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+
+    .map-canvas { flex-grow: 1; position: relative; overflow: hidden; background: #F8FAFC; }
+    .arch-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .node-fo { overflow: visible; }
+    .sys-node {
+      background: var(--card-bg); border: 2px solid var(--border); border-radius: 8px;
+      padding: 8px 10px; text-align: center; cursor: pointer; transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    }
+    .sys-node:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+    .sys-node.active { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.15); }
+    .sys-node.phase2-node { border-style: dashed; opacity: 0.5; pointer-events: none; }
+    .sys-node.phase2-node.visible { opacity: 1; pointer-events: auto; border-style: dashed; border-color: #7C3AED; }
+    .node-icon { font-size: 16px; line-height: 1; }
+    .node-title { font-size: 10px; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+    .node-tech { font-size: 8px; color: #0284C7; font-weight: 600; background: #E0F2FE; display: inline-block; padding: 1px 5px; border-radius: 3px; margin-top: 2px; }
+    .node-phase2 { font-size: 7px; color: #7C3AED; font-weight: 700; background: #EDE9FE; display: inline-block; padding: 1px 5px; border-radius: 3px; margin-top: 2px; }
+    .arrow-label { font-size: 8px; font-weight: 600; fill: #475569; text-anchor: middle; pointer-events: none; }
+
+    .legend { display: flex; gap: 12px; padding: 7px 12px; border-top: 1px solid var(--border); flex-shrink: 0; background: #F8FAFC; flex-wrap: wrap; }
+    .leg { display: flex; align-items: center; gap: 4px; font-size: 9px; color: var(--text-muted); font-weight: 500; }
+    .leg-line { width: 20px; height: 2px; border-radius: 1px; }
+    .leg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .leg-dash { width: 20px; height: 0px; border-top: 2px dashed #7C3AED; }
+
+    .inspector { padding: 16px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 12px; }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); text-align: center; font-size: 12px; gap: 8px; }
+    .insp-title { font-size: 16px; font-weight: 700; color: var(--text-main); }
+    .insp-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .insp-phase { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: inline-block; margin-bottom: 4px; }
+    .phase-1-badge { background: #E0F2FE; color: #0369A1; }
+    .phase-2-badge { background: #EDE9FE; color: #5B21B6; }
+
+    .meta-row { display: flex; gap: 5px; flex-wrap: wrap; }
+    .meta-pill { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: #F1F5F9; color: var(--text-main); border: 1px solid var(--border); }
+    .meta-pill.adr { background: #E0F2FE; border-color: #BAE6FD; color: #0369A1; }
+
+    .detail-section h4 { font-size: 11px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+    .detail-section ul { list-style: none; padding: 0; }
+    .detail-section li { position: relative; padding-left: 12px; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; line-height: 1.5; }
+    .detail-section li::before { content: "→"; position: absolute; left: 0; color: var(--accent); font-weight: bold; font-size: 9px; top: 2px; }
+    .detail-section li.p2::before { color: #7C3AED; }
+
+    .flows-section { background: #F8FAFC; border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+    .flows-title { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 6px; }
+    .flow-item { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 10px; }
+    .flow-dir { font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+    .flow-proto { font-weight: 600; color: var(--text-main); }
+    .flow-desc { color: var(--text-muted); }
+
+    .tscs-box { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 6px; padding: 10px 12px; font-size: 10px; line-height: 1.7; }
+    .tscs-box .tscs-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #92400E; margin-bottom: 5px; }
+    .tscs-formula { font-family: monospace; font-size: 9px; background: #0F172A; color: #86EFAC; padding: 7px 10px; border-radius: 4px; line-height: 1.7; margin: 5px 0; white-space: pre; }
+
+    .insight-box { background: linear-gradient(135deg, #0F172A, #1E293B); border-radius: 6px; padding: 12px; color: #F8FAFC; margin-top: auto; }
+    .insight-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #38BDF8; margin-bottom: 5px; }
+    .insight-text { font-size: 11px; line-height: 1.6; color: #CBD5E1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>C4 System Context Map — CredoAI v2</h1>
+    <p>Azure India Central VNet · DPDP Rules 2025 · Agentic GraphRAG Platform · Click any node to inspect protocols, TSCS scoring, and compliance obligations.</p>
+  </div>
+  <div class="phase-toggle">
+    <button class="phase-btn active" onclick="setPhase(1, this)">Phase 1 MVP</button>
+    <button class="phase-btn" onclick="setPhase(2, this)">Phase 2 Full</button>
+  </div>
+</div>
+
+<div class="dashboard">
+  <div class="panel">
+    <div class="panel-header">
+      <span>Azure India Central — VNet Topology</span>
+      <span style="font-size:10px;color:#10B981;font-weight:700;" id="phase-status">● Phase 1 — MVP Active</span>
+    </div>
+    <div class="map-canvas">
+      <svg class="arch-svg" id="archSvg" viewBox="0 0 600 520" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <marker id="arrow-a" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0.5 L0,5.5 L7,3 z" fill="#185FA5"/></marker>
+          <marker id="arrow-b" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0.5 L0,5.5 L7,3 z" fill="#EA580C"/></marker>
+          <marker id="arrow-p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0.5 L0,5.5 L7,3 z" fill="#991B1B"/></marker>
+          <marker id="arrow-f" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0.5 L0,5.5 L7,3 z" fill="#059669"/></marker>
+          <marker id="arrow-d" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0.5 L0,5.5 L7,3 z" fill="#6D28D9"/></marker>
+          <marker id="arrow-m" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0.5 L0,5.5 L7,3 z" fill="#7C3AED"/></marker>
+        </defs>
+
+        <!-- VNet boundary -->
+        <rect x="55" y="95" width="490" height="390" rx="12" fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="6,4"/>
+        <rect x="95" y="87" width="148" height="16" rx="3" fill="#F8FAFC"/>
+        <text x="169" y="98" font-family="-apple-system,sans-serif" font-size="9" font-weight="700" fill="#64748B" text-anchor="middle" letter-spacing="1">SECURE VNET BOUNDARY</text>
+
+        <!-- PII Residency boundary -->
+        <rect x="195" y="272" width="240" height="190" rx="8" fill="rgba(16,185,129,0.04)" stroke="#10B981" stroke-width="1" stroke-dasharray="4,3"/>
+        <rect x="228" y="265" width="130" height="14" rx="3" fill="#F8FAFC"/>
+        <text x="293" y="274" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="#059669" text-anchor="middle" letter-spacing="0.5">PII RESIDENCY BOUNDARY</text>
+
+        <!-- DPDPA Consent boundary (Phase 2 — shown/hidden) -->
+        <rect id="consent-boundary" x="340" y="105" width="195" height="90" rx="8" fill="rgba(124,58,237,0.04)" stroke="#7C3AED" stroke-width="1" stroke-dasharray="4,3" opacity="0"/>
+        <rect id="consent-label-bg" x="355" y="98" width="130" height="14" rx="3" fill="#F8FAFC" opacity="0"/>
+        <text id="consent-label" x="420" y="107" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="#7C3AED" text-anchor="middle" letter-spacing="0.5" opacity="0">DPDPA CONSENT MANAGER</text>
+
+        <!-- ── FLOW LINES ── -->
+        <!-- Client → Gateway HTTPS -->
+        <line x1="230" y1="78" x2="152" y2="158" stroke="#185FA5" stroke-width="2" marker-end="url(#arrow-a)"/>
+        <rect x="155" y="104" width="66" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="188" y="113" class="arrow-label" fill="#185FA5">HTTPS · OAuth 2.0</text>
+
+        <!-- Gateway ↔ OPA (checkpoint 1) -->
+        <line x1="212" y1="196" x2="358" y2="196" stroke="#991B1B" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-p)"/>
+        <rect x="252" y="188" width="60" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="282" y="197" class="arrow-label" fill="#991B1B">OPA Eval ①</text>
+        <line x1="358" y1="207" x2="212" y2="207" stroke="#991B1B" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-p)"/>
+        <rect x="252" y="209" width="60" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="282" y="218" class="arrow-label" fill="#991B1B">Allow / Deny</text>
+
+        <!-- Gateway → AI gRPC -->
+        <line x1="152" y1="228" x2="248" y2="300" stroke="#185FA5" stroke-width="2" marker-end="url(#arrow-a)"/>
+        <rect x="152" y="256" width="76" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="190" y="265" class="arrow-label" fill="#185FA5">gRPC · Protobuf</text>
+
+        <!-- AI ↔ OPA (checkpoint 2) -->
+        <line x1="345" y1="316" x2="415" y2="234" stroke="#991B1B" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrow-p)"/>
+        <rect x="364" y="267" width="56" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="392" y="276" class="arrow-label" fill="#991B1B">OPA Gate ②</text>
+
+        <!-- AI → Neo4j Cypher -->
+        <line x1="322" y1="350" x2="378" y2="368" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-d)"/>
+        <rect x="314" y="350" width="72" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="350" y="359" class="arrow-label" fill="#6D28D9">Cypher · TSCS</text>
+
+        <!-- Neo4j → AI subgraph return -->
+        <line x1="378" y1="380" x2="324" y2="362" stroke="#6D28D9" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-d)"/>
+        <rect x="317" y="378" width="76" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="355" y="387" class="arrow-label" fill="#6D28D9">Subgraph + TSCS</text>
+
+        <!-- AI → LLM -->
+        <line x1="262" y1="372" x2="266" y2="420" stroke="#185FA5" stroke-width="2" marker-end="url(#arrow-a)"/>
+        <rect x="214" y="390" width="66" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="247" y="399" class="arrow-label" fill="#185FA5">Scrubbed prompt</text>
+
+        <!-- LLM → AI response -->
+        <line x1="254" y1="420" x2="250" y2="372" stroke="#059669" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-f)"/>
+
+        <!-- Gateway → Kafka Outbox -->
+        <line x1="120" y1="228" x2="140" y2="368" stroke="#EA580C" stroke-width="2" marker-end="url(#arrow-b)"/>
+        <rect x="60" y="290" width="72" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="96" y="299" class="arrow-label" fill="#EA580C">Outbox → Kafka</text>
+
+        <!-- Kafka → AI event -->
+        <line x1="210" y1="396" x2="210" y2="372" stroke="#EA580C" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-b)"/>
+        <line x1="154" y1="396" x2="210" y2="396" stroke="#EA580C" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <rect x="154" y="400" width="58" height="13" rx="3" fill="#F8FAFC" opacity="0.92"/>
+        <text x="183" y="409" class="arrow-label" fill="#EA580C">Event consume</text>
+
+        <!-- AI → Kafka Saga -->
+        <line x1="237" y1="372" x2="162" y2="385" stroke="#EA580C" stroke-width="1.5" marker-end="url(#arrow-b)"/>
+
+        <!-- Phase 2: MCP Gateway → AI (hidden by default) -->
+        <line id="mcp-line" x1="450" y1="185" x2="350" y2="315" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arrow-m)" opacity="0"/>
+        <rect id="mcp-label-bg" x="428" y="240" width="52" height="13" rx="3" fill="#F8FAFC" opacity="0"/>
+        <text id="mcp-label" x="454" y="249" class="arrow-label" fill="#7C3AED" opacity="0">MCP · OPA</text>
+
+        <!-- Phase 2: Consent Manager → OPA (hidden by default) -->
+        <line id="cm-line" x1="440" y1="175" x2="420" y2="175" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-m)" opacity="0"/>
+
+        <!-- W3C + RRAT trace bar -->
+        <rect x="65" y="496" width="470" height="16" rx="4" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="0.8"/>
+        <text x="300" y="507" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="#1D4ED8" text-anchor="middle" letter-spacing="0.5">
+          W3C TRACEPARENT + RRAT FORENSIC SNAPSHOT — Single Trace ID · Reasoning Provenance · RBI Audit
+        </text>
+
+        <!-- ══ NODES ══ -->
+        <!-- Client -->
+        <foreignObject x="200" y="18" width="112" height="58" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-client" onclick="loadNode('client')">
+            <div class="node-icon">👤</div>
+            <div class="node-title">Enterprise Client</div>
+            <div class="node-tech">HTTPS · OAuth 2.0</div>
+          </div>
+        </foreignObject>
+
+        <!-- Gateway -->
+        <foreignObject x="72" y="158" width="116" height="64" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-gateway" onclick="loadNode('gateway')">
+            <div class="node-icon">🚪</div>
+            <div class="node-title">Ingress Gateway</div>
+            <div class="node-tech">.NET 10 · Presidio</div>
+          </div>
+        </foreignObject>
+
+        <!-- OPA -->
+        <foreignObject x="358" y="158" width="116" height="64" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-opa" onclick="loadNode('opa')">
+            <div class="node-icon">🛡️</div>
+            <div class="node-title">Policy Engine</div>
+            <div class="node-tech">OPA · Rego · Fail-closed</div>
+          </div>
+        </foreignObject>
+
+        <!-- AI Orchestrator -->
+        <foreignObject x="192" y="298" width="116" height="64" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-ai" onclick="loadNode('ai')">
+            <div class="node-icon">🧠</div>
+            <div class="node-title">AI Orchestrator</div>
+            <div class="node-tech">Python · LangGraph</div>
+          </div>
+        </foreignObject>
+
+        <!-- Neo4j -->
+        <foreignObject x="378" y="358" width="112" height="62" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-graph" onclick="loadNode('graph')">
+            <div class="node-icon">🕸️</div>
+            <div class="node-title">Knowledge Graph</div>
+            <div class="node-tech">Neo4j · TSCS · Temporal</div>
+          </div>
+        </foreignObject>
+
+        <!-- Kafka -->
+        <foreignObject x="72" y="368" width="116" height="58" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-kafka" onclick="loadNode('kafka')">
+            <div class="node-icon">📨</div>
+            <div class="node-title">Event Backbone</div>
+            <div class="node-tech">Kafka · DLQ · Saga</div>
+          </div>
+        </foreignObject>
+
+        <!-- LLM -->
+        <foreignObject x="200" y="420" width="116" height="50" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node" id="node-llm" onclick="loadNode('llm')">
+            <div class="node-icon">🤖</div>
+            <div class="node-title">Sovereign LLM</div>
+            <div class="node-tech">Intent-Driven Gateway</div>
+          </div>
+        </foreignObject>
+
+        <!-- Phase 2: MCP Gateway node (hidden by default) -->
+        <foreignObject x="408" y="108" width="112" height="56" class="node-fo">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node phase2-node" id="node-mcp" onclick="loadNode('mcp')">
+            <div class="node-icon">🔌</div>
+            <div class="node-title">MCP Gateway</div>
+            <div class="node-tech">MCP · OPA Sidecar</div>
+            <div class="node-phase2">Phase 2</div>
+          </div>
+        </foreignObject>
+
+        <!-- Phase 2: Consent Manager node (hidden by default) -->
+        <foreignObject x="408" y="108" width="112" height="56" class="node-fo" id="fo-cm" style="display:none">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="sys-node phase2-node" id="node-cm" onclick="loadNode('cm')">
+            <div class="node-icon">🔐</div>
+            <div class="node-title">Consent Manager</div>
+            <div class="node-tech">DPDPA Rules 2025</div>
+            <div class="node-phase2">Phase 2</div>
+          </div>
+        </foreignObject>
+
+        <!-- PATH badges -->
+        <rect x="65" y="126" width="48" height="14" rx="3" fill="#185FA5"/>
+        <text x="89" y="136" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="white" text-anchor="middle">PATH A · SYNC</text>
+        <rect x="65" y="144" width="52" height="14" rx="3" fill="#EA580C"/>
+        <text x="91" y="154" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="white" text-anchor="middle">PATH B · ASYNC</text>
+        <rect x="458" y="126" width="68" height="14" rx="3" fill="#991B1B"/>
+        <text x="492" y="136" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="white" text-anchor="middle">POLICY · OPA</text>
+        <rect x="458" y="144" width="68" height="14" rx="3" fill="#6D28D9"/>
+        <text x="492" y="154" font-family="-apple-system,sans-serif" font-size="8" font-weight="700" fill="white" text-anchor="middle">TSCS · GRAPH</text>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <div class="leg"><div class="leg-line" style="background:#185FA5"></div>PATH A · Sync</div>
+      <div class="leg"><div class="leg-line" style="background:#EA580C"></div>PATH B · Async</div>
+      <div class="leg"><div class="leg-line" style="background:#991B1B;height:1px;border-top:1px dashed #991B1B"></div>OPA Policy</div>
+      <div class="leg"><div class="leg-line" style="background:#6D28D9"></div>TSCS · GraphRAG</div>
+      <div class="leg"><div class="leg-line" style="background:#059669;height:1px;border-top:1px dashed #059669"></div>Response / Feedback</div>
+      <div class="leg"><div class="leg-dash"></div>Phase 2 elements</div>
+      <div class="leg"><div class="leg-dot" style="background:#10B981;border:1px solid #059669"></div>PII Residency</div>
+    </div>
+  </div>
+
+  <!-- INSPECTOR -->
+  <div class="panel">
+    <div class="panel-header">Architecture Node Inspector</div>
+    <div class="inspector" id="inspector-content">
+      <div class="empty-state">
+        <div style="font-size:28px">←</div>
+        <p>Select a node to inspect its protocols, TSCS scoring behaviour, and DPDPA compliance obligations.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADR = {
+  '001': 'ADR-001: Zero-Trust OPA Governance',
+  '002': 'ADR-002: Transactional Outbox Pattern',
+  '003': 'ADR-003: gRPC Polyglot Boundary',
+  '004': 'ADR-004: GraphRAG Confidence Gate',
+  '005': 'ADR-005: LangGraph State Machine',
+  '006': 'ADR-006: Saga Orchestration Pattern',
+  '007': 'ADR-007: DPDPA Node Tombstoning',
+  '008': 'ADR-008: MCP with OPA Sidecar',
+  '009': 'ADR-009: Multi-Agent Architecture',
+  '010': 'ADR-010: TSCS Temporal Decay',
+  '011': 'ADR-011: RRAT Forensic Snapshot'
+};
+function adrLabels(nums){ return nums.map(n => ADR[n] || 'ADR-'+n); }
+
+const sysData = {
+  client: {
+    phase: 1,
+    title: "Enterprise Client",
+    tech: "HTTPS · OAuth 2.0",
+    desc: "The external caller — a bank user, enterprise application, or downstream system initiating a regulatory query. Never communicates directly with the AI runtime.",
+    adrs: adrLabels(['001']),
+    rules: [
+      "Must present a valid signed JWT with purpose binding and consent_verified claims",
+      "Must originate from approved IP range or Azure Private Link",
+      "Gateway is mandatory — AI layer is never exposed directly",
+      { p2: true, text: "Phase 2: JWT must include DPDPA Consent Manager reference token" }
+    ],
+    flows: [
+      { dir: "OUT", dirColor: "#185FA5", proto: "HTTPS/REST", desc: "→ Ingress Gateway (OAuth 2.0 bearer token)" }
+    ],
+    insight: "Clients never reach the AI layer directly. This architectural boundary eliminates all direct prompt injection attack surface at the network level — not the application level."
+  },
+  gateway: {
+    phase: 1,
+    title: "Ingress Gateway (.NET 10)",
+    tech: "C# · EF Core · Presidio · Transactional Outbox",
+    desc: "The deterministic front door. Handles authentication, PII scrubbing, atomic Transactional Outbox commits, and the gRPC boundary to the Python agent pod. The polyglot state drift problem is solved here.",
+    adrs: adrLabels(['002', '003']),
+    rules: [
+      "Presidio PII scrubbing executes BEFORE any payload reaches Kafka or gRPC — LLM never sees raw Aadhaar/PAN",
+      "SQL Ledger + Outbox table committed in SAME database transaction — state drift mathematically impossible",
+      "REST/JSON converted to strict Protobuf before crossing polyglot boundary",
+      "mTLS enforced on all internal service calls",
+      { p2: true, text: "Phase 2: MCP Gateway intercepts all tool calls with OPA sidecar (ADR-008)" }
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#059669", proto: "HTTPS · OAuth",   desc: "← Enterprise Client" },
+      { dir: "OUT", dirColor: "#991B1B", proto: "OPA Eval ①",      desc: "→ Policy Engine (pre-ingestion checkpoint 1)" },
+      { dir: "OUT", dirColor: "#185FA5", proto: "gRPC · Protobuf",  desc: "→ AI Orchestrator (PATH A · sync)" },
+      { dir: "OUT", dirColor: "#EA580C", proto: "Outbox → Kafka",   desc: "→ Event Backbone (PATH B · async)" }
+    ],
+    insight: ".NET 10 is chosen for its multi-threaded IO and ACID transaction guarantees. The single-threaded Python AI layer is shielded from network floods — each runtime does what it excels at. The Outbox guarantee: SQL commit = Kafka event commit. They cannot diverge. Ever."
+  },
+  opa: {
+    phase: 1,
+    title: "Open Policy Agent — Zero Trust PDP",
+    tech: "Rego · Single PDP · Fail-Closed · TTL 30s",
+    desc: "Externalized Policy Decision Point. Called at TWO checkpoints per request. Fail-closed — any evaluation error = request denied. The LLM cannot override or influence policy decisions.",
+    adrs: adrLabels(['001']),
+    rules: [
+      "Single stateless PDP instance — NOT two separate OPA deployments",
+      "Checkpoint ①: JWT claims, DPDPA purpose binding, consent_verified, tenant isolation",
+      "Checkpoint ②: Data category gating, EU AI Act Art.14 human oversight enforcement",
+      "Policy TTL 30s — dynamic reload for new RBI circulars without restart",
+      "Fail-closed: evaluation error = deny + audit log. No fallback to allow.",
+      { p2: true, text: "Phase 2: OPA sidecar intercepts every MCP tool call (ADR-008)" },
+      { p2: true, text: "Phase 2: DPDPA Consent Manager API checked in real-time at Checkpoint ①" }
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#991B1B", proto: "OPA Eval ①",   desc: "← Gateway (pre-ingestion)" },
+      { dir: "IN",  dirColor: "#991B1B", proto: "OPA Gate ②",   desc: "← AI Orchestrator (pre-AI boundary)" },
+      { dir: "OUT", dirColor: "#991B1B", proto: "Allow / Deny",  desc: "→ Gateway + AI (policy decision)" }
+    ],
+    insight: "Governance is architectural — not prompt-based. A malicious prompt cannot bypass a Rego rule. OPA evaluated and adopted over internal gRPC protocol (ADR-008) because every MCP tool call in Phase 2 requires policy-gated connectivity, not universal access."
+  },
+  ai: {
+    phase: 1,
+    title: "LangGraph AI Orchestrator",
+    tech: "Python 3.12 · LangGraph · NeMo Guardrails · TSCS Gate",
+    desc: "The stateful AI brain — a cyclic graph state machine managing tool calls, memory, NeMo safety, GraphRAG retrieval, TSCS confidence scoring, and HITL checkpoint suspension.",
+    adrs: adrLabels(['004', '005']),
+    rules: [
+      "NeMo Guardrails execute on every node entry AND exit — not just at input boundary",
+      "RAGAS Faithfulness ≥ 0.85 gate in Phase 1 — routes to Saga DLQ if below threshold",
+      "Pod crash = LangGraph resumes from PostgreSQL checkpoint — never restarts from scratch",
+      "OPA called again at Checkpoint ② before any inference",
+      { p2: true, text: "Phase 2: TSCS replaces RAGAS-only gate — consent + temporal + structural" },
+      { p2: true, text: "Phase 2: 3-agent pod — Compliance Agent, Retrieval Agent, Audit Agent" },
+      { p2: true, text: "Phase 2: MACA aggregates TSCS scores across agents with overlap penalty" },
+      { p2: true, text: "Phase 2: Tokenomic Circuit Breaker fires Semantic Kill-Switch on B_max breach" }
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#185FA5", proto: "gRPC · Protobuf",  desc: "← Ingress Gateway (authorised request)" },
+      { dir: "OUT", dirColor: "#991B1B", proto: "OPA Gate ②",       desc: "→ Policy Engine (pre-AI checkpoint)" },
+      { dir: "OUT", dirColor: "#6D28D9", proto: "Cypher · TSCS",    desc: "→ Neo4j Knowledge Graph (retrieval)" },
+      { dir: "OUT", dirColor: "#185FA5", proto: "Scrubbed prompt",   desc: "→ Sovereign LLM (inference)" },
+      { dir: "OUT", dirColor: "#EA580C", proto: "Saga Events",       desc: "→ Kafka (compensation / DLQ)" }
+    ],
+    tscs: true,
+    insight: "LangGraph state machine replaces linear chains. If Neo4j retrieval fails at node 4 of 7, it retries locally — the workflow does not restart. In Phase 2, the single agent becomes a governed 3-agent pod with MACA confidence aggregation and token budget enforcement."
+  },
+  graph: {
+    phase: 1,
+    title: "Neo4j AuraDB — Knowledge Graph",
+    tech: "Cypher · GraphRAG · TSCS · Temporal Decay",
+    desc: "Stores RBI regulatory clauses as graph nodes with semantic relationship edges and temporal metadata. Phase 1: schema foundation. Phase 2: TSCS confidence scoring with temporal decay.",
+    adrs: adrLabels(['004', '007', '010']),
+    rules: [
+      "Tenant_ID label on every Cypher query — cross-tenant leakage architecturally impossible",
+      "DPDPA Art.12 erasure: node tombstoning propagates without corrupting edge topology (ADR-007)",
+      "Phase 1: issued_date and consent_status properties added to schema (foundation for C1)",
+      { p2: true, text: "Phase 2: TSCS formula = C_status × [α × StructuralDensity + β × Σ(w_i × e^(-λ_i × age_days_i))]" },
+      { p2: true, text: "Phase 2: λ→0 for root nodes (Banking Regulation Act, RBI Act) — never decay" },
+      { p2: true, text: "Phase 2: HNSW pre-filter (Stage 1, sub-50ms) → TSCS GraphRAG (Stage 2) for sub-200ms SLA" },
+      { p2: true, text: "Phase 2: Cryptographic provenance check on every ingested node (ADR-010)" }
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#6D28D9", proto: "Cypher query",    desc: "← AI Orchestrator (graph traversal)" },
+      { dir: "OUT", dirColor: "#6D28D9", proto: "Subgraph + TSCS", desc: "→ AI Orchestrator (nodes, edges, TSCS score)" }
+    ],
+    tscs_detail: true,
+    insight: "Flat vector search answers 'what mentions DPDPA?' — Neo4j answers 'which rules are connected to DPDPA Art.6 AND were issued after 2022?' Phase 2 TSCS adds temporal authority — a fresh sparse subgraph correctly outscores a stale dense one in regulatory compliance."
+  },
+  kafka: {
+    phase: 1,
+    title: "Kafka Event Backbone",
+    tech: "Apache Kafka · DLQ · Saga · Idempotency Keys",
+    desc: "The asynchronous durability layer. Events published ONLY after Transactional Outbox atomic DB commit. Guarantees zero state drift between .NET SQL ledger and Python AI pod.",
+    adrs: adrLabels(['006']),
+    rules: [
+      "Events published ONLY by Outbox relay — never directly from application code",
+      "W3C traceparent propagated inside every Kafka event header",
+      "max_retries = 3 · exponential backoff: 1s → 5s → 30s",
+      "After DLQ: ops alert + Saga compensation initiated automatically",
+      "Idempotency keys prevent duplicate processing on replay",
+      { p2: true, text: "Phase 2: Semantic Kill-Switch publishes Kill event → Saga rollback → SQL ledger restored" },
+      { p2: true, text: "Phase 2: RRAT forensic snapshot carried in Kafka event headers (ADR-011)" }
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#EA580C", proto: "Outbox publish", desc: "← Gateway (atomic Outbox relay)" },
+      { dir: "OUT", dirColor: "#EA580C", proto: "Event consume",  desc: "→ AI Orchestrator (async trigger)" },
+      { dir: "IN",  dirColor: "#EA580C", proto: "Saga events",    desc: "← AI Orchestrator (compensation)" }
+    ],
+    insight: "The Outbox guarantee: SQL ledger commit and Kafka event write happen in the SAME database transaction. They share the same disk sector write. They cannot diverge. A network partition after the commit replays from the Outbox — no manual reconciliation ever."
+  },
+  llm: {
+    phase: 1,
+    title: "Sovereign LLM — Intent-Driven Gateway",
+    tech: "Azure OpenAI India · Ollama dev · Provider-Agnostic",
+    desc: "Phase 1: Ollama + Mistral locally (no PII leaves machine). Production: Azure OpenAI with Private Endpoints (India Central). Phase 2: Intent-Driven Gateway routes to reasoning vs extraction model class.",
+    adrs: adrLabels(['003']),
+    rules: [
+      "Dev: Ollama + Mistral — absolute data sovereignty, no external calls",
+      "Prod: Azure OpenAI India Central Private Endpoint — DPDPA Art.17 data residency",
+      "Provider swap (Ollama ↔ Azure OpenAI) requires ZERO application code changes (ADR-003)",
+      "PII never reaches this node — Presidio scrubs at Gateway (DPDPA Art.8)",
+      { p2: true, text: "Phase 2: Reasoning model (Claude Opus family) for complex multi-hop regulatory queries" },
+      { p2: true, text: "Phase 2: Extraction model (DeepSeek/Llama family) for bulk document processing" },
+      { p2: true, text: "Phase 2: Confidential TEE boundary — Azure CPU TEE (Intel TDX) validated" }
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#185FA5", proto: "Scrubbed prompt",   desc: "← AI Orchestrator (PII-free request)" },
+      { dir: "OUT", dirColor: "#059669", proto: "Generated response", desc: "→ AI Orchestrator (synthesis result)" }
+    ],
+    insight: "The intelligence is NOT in the LLM — it is in the TSCS-governed GraphRAG retrieval and LangGraph orchestration. The LLM synthesises over governed context. Model swap changes nothing in the governance architecture. ADR-003 guarantees this permanently."
+  },
+  mcp: {
+    phase: 2,
+    title: "MCP Gateway + OPA Sidecar",
+    tech: "Model Context Protocol · OPA Sidecar · ADR-008",
+    desc: "Phase 2 component. Every MCP tool call is intercepted by an OPA sidecar before execution. Provides governed tool connectivity — MCP for the protocol, OPA for the policy enforcement layer.",
+    adrs: adrLabels(['001', '008']),
+    rules: [
+      "Every MCP tool call evaluated by OPA sidecar before execution — no bypass possible",
+      "Rate limiting enforced per tenant per tool class",
+      "MCP adopted over pure gRPC-only protocol for agent-to-tool standardisation (ADR-008)",
+      "Open MCP without OPA rejected — universal connectivity without policy gating creates DPDPA exposure"
+    ],
+    flows: [
+      { dir: "IN",  dirColor: "#7C3AED", proto: "MCP tool call", desc: "← AI Orchestrator (tool request)" },
+      { dir: "OUT", dirColor: "#991B1B", proto: "OPA sidecar",   desc: "→ Policy Engine (every call intercepted)" },
+      { dir: "OUT", dirColor: "#7C3AED", proto: "Tool response", desc: "→ AI Orchestrator (governed response)" }
+    ],
+    insight: "MCP provides the protocol standardisation demanded by 2026 enterprise AI platforms. OPA provides the zero-trust governance layer on top. The combination (MCP + OPA sidecar) delivers both — connectivity without sacrificing compliance."
+  },
+  cm: {
+    phase: 2,
+    title: "DPDPA Consent Manager",
+    tech: "DPDP Rules 2025 · Art.6 · Real-time API",
+    desc: "Phase 2 component. Real-time consent status API called during OPA Checkpoint ① evaluation. DPDPA Rules 2025 mandate Consent Manager registration from November 2026.",
+    adrs: adrLabels(['001', '010']),
+    rules: [
+      "Consent Manager registration required from November 13, 2026 (DPDP Rules 2025)",
+      "Returns C_status ∈ {0,1} — consent valid or revoked — per Data Principal per purpose",
+      "C_status=0 → TSCS=0.0 → immediate HITL + Saga rollback (DPDPA Art.6 violation)",
+      "Purpose binding: each consent tied to exact processing purpose declared at collection"
+    ],
+    flows: [
+      { dir: "OUT", dirColor: "#7C3AED", proto: "Consent status", desc: "→ OPA Checkpoint ① (C_status value)" }
+    ],
+    insight: "DPDPA Rules 2025 enforcement begins May 2027. CredoAI v2 is being built enforcement-ready before the deadline. The C_status binary gate in TSCS means consent revocation produces deterministic architectural failure — not a soft rejection that can be overridden."
+  }
+};
+
+function loadNode(id) {
+  document.querySelectorAll('.sys-node').forEach(n => n.classList.remove('active'));
+  const el = document.getElementById('node-' + id);
+  if (el) el.classList.add('active');
+
+  const data = sysData[id];
+  if (!data) return;
+
+  const phaseLabel = data.phase === 2
+    ? `<span class="insp-phase phase-2-badge">Phase 2 — Future Architecture</span>`
+    : `<span class="insp-phase phase-1-badge">Phase 1 — MVP Active</span>`;
+
+  const flowsHTML = data.flows.map(f => `
+    <div class="flow-item">
+      <span class="flow-dir" style="background:${f.dirColor};color:#fff">${f.dir}</span>
+      <span class="flow-proto">${f.proto}</span>
+      <span class="flow-desc">${f.desc}</span>
+    </div>`).join('');
+
+  const rulesHTML = data.rules.map(r => {
+    if (typeof r === 'string') return `<li>${r}</li>`;
+    return `<li class="p2" style="color:#7C3AED;font-size:10px">${r.text}</li>`;
+  }).join('');
+
+  const tscsHTML = (data.tscs || data.tscs_detail) ? `
+    <div class="tscs-box">
+      <div class="tscs-label">TSCS Formula — C1 Research Contribution (Phase 2)</div>
+      <div class="tscs-formula">TSCS = C_status × [
+  α × StructuralDensity +
+  β × Σ(w_i × e^(-λ_i × age_days_i))
+]
+C_status=0 → TSCS=0.0 → HITL + Saga rollback
+λ→0 for root nodes (never decay)
+Threshold: TSCS ≥ 0.75 → AUTO · &lt;0.75 → HITL</div>
+    </div>` : '';
+
+  document.getElementById('inspector-content').innerHTML = `
+    ${phaseLabel}
+    <div class="insp-title">${data.title}</div>
+    <div class="meta-row">
+      <span class="meta-pill">${data.tech}</span>
+      ${data.adrs.map(a => `<span class="meta-pill adr">${a}</span>`).join('')}
+    </div>
+    <div class="insp-desc">${data.desc}</div>
+    <div class="flows-section">
+      <div class="flows-title">Data Flows · Protocols</div>
+      ${flowsHTML}
+    </div>
+    ${tscsHTML}
+    <div class="detail-section">
+      <h4>Architectural Rules</h4>
+      <ul>${rulesHTML}</ul>
+    </div>
+    <div class="insight-box">
+      <div class="insight-label">Principal Insight</div>
+      <div class="insight-text">${data.insight}</div>
+    </div>`;
+}
+
+let currentPhase = 1;
+function setPhase(phase, btn) {
+  currentPhase = phase;
+  document.querySelectorAll('.phase-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const p2Els = ['mcp-line','mcp-label-bg','mcp-label','cm-line','consent-boundary','consent-label-bg','consent-label'];
+  p2Els.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.setAttribute('opacity', phase === 2 ? '1' : '0');
+  });
+
+  const mcpNode = document.getElementById('node-mcp');
+  const foCm = document.getElementById('fo-cm');
+  if (mcpNode) mcpNode.classList.toggle('visible', phase === 2);
+  if (foCm) foCm.style.display = phase === 2 ? 'block' : 'none';
+
+  document.getElementById('phase-status').textContent =
+    phase === 1 ? '● Phase 1 — MVP Active' : '◈ Phase 2 — Full Architecture';
+  document.getElementById('phase-status').style.color = phase === 1 ? '#10B981' : '#7C3AED';
+}
+</script>
+</body>
+</html>

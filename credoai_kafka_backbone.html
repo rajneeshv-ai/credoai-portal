@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Rajneesh Kumar Verma">
+  <meta name="copyright" content="© 2026 Rajneesh Kumar Verma. Licensed under Apache 2.0.">
+  
+  <title>Kafka Event Backbone | CredoAI</title>
+  <style>
+    :root {
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --accent: #185FA5;
+      --success: #10B981;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --net-color: #0369A1;
+      --kafka-color: #5B21B6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { background: var(--bg); color: var(--text-main); padding: 40px; }
+    
+    .header { margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+    .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .header p { font-size: 14px; color: var(--text-muted); line-height: 1.5; max-width: 850px; }
+    
+    .dashboard { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; max-width: 1100px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
+    .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    
+    /* Architecture Diagram */
+    .arch-diagram { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; padding: 20px; background: #F1F5F9; border-radius: 8px; border: 1px dashed #CBD5E1; }
+    .arch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    
+    .node { flex: 1; padding: 12px; border-radius: 6px; text-align: center; font-size: 12px; font-weight: 600; border: 2px solid transparent; transition: all 0.3s ease; position: relative; }
+    .node-net { background: #E0F2FE; color: var(--net-color); border-color: #BAE6FD; }
+    .node-kafka { background: #EDE9FE; color: var(--kafka-color); border-color: #DDD6FE; }
+    .node-py { background: #DCFCE7; color: #166534; border-color: #BBF7D0; }
+    .node-dlq { background: #FEE2E2; color: #991B1B; border-color: #FECACA; }
+    
+    .node.active { box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4); transform: scale(1.02); }
+    .node.failed { border-color: var(--danger); background: #FEF2F2; color: var(--danger); animation: shake 0.4s; }
+    .node.success { border-color: var(--success); background: #ECFDF5; color: var(--success); }
+
+    @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-4px); } 50% { transform: translateX(4px); } 75% { transform: translateX(-4px); } 100% { transform: translateX(0); } }
+
+    /* Controls */
+    .controls { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+    .control-row { display: flex; justify-content: space-between; align-items: center; }
+    .control-label { font-size: 13px; font-weight: 600; }
+    input[type="range"] { width: 200px; accent-color: var(--accent); }
+    
+    button.primary { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button.primary:hover { background: #0C447C; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Terminal/Audit Log */
+    .terminal { background: #0F172A; color: #38BDF8; padding: 16px; border-radius: 6px; font-family: monospace; font-size: 12px; flex-grow: 1; overflow-y: auto; max-height: 400px; display: flex; flex-direction: column; gap: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+    .log-entry { margin: 0; line-height: 1.5; word-wrap: break-word; }
+    .log-time { color: #64748B; margin-right: 8px; }
+    .log-success { color: #34D399; }
+    .log-warn { color: #FBBF24; }
+    .log-error { color: #F87171; }
+    .log-key { color: #A78BFA; }
+
+    .insight { background: #FFFBEB; border-left: 4px solid var(--warning); padding: 16px; font-size: 13px; color: #92400E; margin-top: auto; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Kafka Event Backbone & Saga Orchestration</h1>
+    <p>Interactive simulation of CredoAI's distributed durability path (PATH B). Prove that polyglot network partitions and AI pod crashes do not result in state drift between the .NET ledger and the Python runtime.</p>
+  </div>
+
+  <div class="dashboard">
+    
+    <div class="card">
+      <h2>Distributed Polyglot Topology</h2>
+      
+      <div class="arch-diagram">
+        <div class="arch-row">
+          <div class="node node-net" id="node-db">1. PostgreSQL Ledger<br>(.NET 10)</div>
+          <span style="color: #94A3B8;">→</span>
+          <div class="node node-net" id="node-outbox">2. Transactional Outbox<br>(Atomic Write)</div>
+        </div>
+        <div style="text-align: center; color: #94A3B8;">↓ (Event Relay)</div>
+        <div class="arch-row">
+          <div class="node node-kafka" id="node-kafka">3. Kafka Topic<br>credo.orchestration.v1</div>
+        </div>
+        <div style="text-align: center; color: #94A3B8;">↓ (Consumer Poll)</div>
+        <div class="arch-row">
+          <div class="node node-py" id="node-agent">4. LangGraph AI Agent<br>(Python 3.12)</div>
+          <span style="color: #94A3B8;">→</span>
+          <div class="node node-dlq" id="node-dlq">5. Dead Letter Queue<br>(Max Retries = 3)</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-row">
+          <div class="control-label">AI Pod Failure Rate: <span id="fail-rate-val">20%</span></div>
+          <input type="range" id="fail-rate" min="0" max="100" value="20" oninput="document.getElementById('fail-rate-val').innerText = this.value + '%'">
+        </div>
+        <button class="primary" id="btn-simulate" onclick="runSimulation()">Simulate Transaction</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>W3C Trace & Audit Log</h2>
+      <div class="terminal" id="terminal">
+        <div class="log-entry"><span class="log-time">[SYSTEM]</span> Ready to process transactions. Waiting for ingress...</div>
+      </div>
+    </div>
+    
+     
+  </div>
+ <p class="insight">
+        <strong>Architectural Insight:</strong> We intentionally reject Two-Phase Commit (2PC) across polyglot boundaries because AI inference is slow and probabilistic. Instead, we use Eventual Consistency. If the Python agent fails 3 times, Kafka routes the message to the DLQ, triggering a .NET Saga Compensator to cleanly rollback the initial PostgreSQL ledger entry. Zero state drift.
+ </p>
+  <script>
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const term = document.getElementById('terminal');
+    
+    function log(msg, type = '') {
+      const time = new Date().toISOString().split('T')[1].substring(0, 12);
+      const div = document.createElement('div');
+      div.className = `log-entry ${type}`;
+      div.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+      term.appendChild(div);
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function resetNodes() {
+      document.querySelectorAll('.node').forEach(n => {
+        n.classList.remove('active', 'failed', 'success');
+      });
+    }
+
+    function setNode(id, state) {
+      const el = document.getElementById(id);
+      el.classList.remove('active', 'failed', 'success');
+      el.classList.add(state);
+    }
+
+    async function runSimulation() {
+      document.getElementById('btn-simulate').disabled = true;
+      resetNodes();
+      
+      const traceId = 'tr-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      const idempotencyKey = 'idempotency-' + Date.now();
+      const failRate = document.getElementById('fail-rate').value / 100;
+      
+      log(`--- NEW TRANSACTION <span class="log-key">[TraceID: ${traceId}]</span> ---`);
+      
+      // Step 1 & 2: Database and Outbox (Atomic)
+      setNode('node-db', 'active');
+      setNode('node-outbox', 'active');
+      log(`BEGIN .NET TRANSACTION...`);
+      await sleep(600);
+      log(`Executing DB Insert (Business State)`);
+      log(`Executing Outbox Insert <span class="log-key">[Key: ${idempotencyKey}]</span>`);
+      log(`COMMIT .NET TRANSACTION (Atomic)`, 'log-success');
+      setNode('node-db', 'success');
+      setNode('node-outbox', 'success');
+      
+      await sleep(800);
+      
+      // Step 3: Kafka
+      resetNodes();
+      setNode('node-kafka', 'active');
+      log(`Outbox Relay polling... Event detected.`);
+      log(`Publishing to Kafka Topic 'credo.orchestration.v1'`);
+      await sleep(600);
+      log(`Kafka Ack received. Partitions synchronized.`, 'log-success');
+      setNode('node-kafka', 'success');
+      
+      await sleep(800);
+      
+      // Step 4: Python AI Consumer Loop
+      resetNodes();
+      setNode('node-agent', 'active');
+      log(`Python LangGraph Agent polling Kafka...`);
+      log(`Message pulled <span class="log-key">[Key: ${idempotencyKey}]</span>`);
+      
+      let attempt = 1;
+      let success = false;
+      const backoffTimes = [1000, 2000, 3000]; // Simulated backoff times (sped up for demo)
+      const realBackoff = ['1s', '5s', '30s'];
+      
+      while (attempt <= 3 && !success) {
+        log(`Attempt ${attempt}/3: Executing AI orchestration...`);
+        await sleep(1000);
+        
+        if (Math.random() > failRate) {
+          success = true;
+          log(`AI Inference Complete. Checkpoint saved.`, 'log-success');
+          log(`Kafka Offset Committed. Transaction Finalized.`, 'log-success');
+          setNode('node-agent', 'success');
+        } else {
+          setNode('node-agent', 'failed');
+          log(`Network/Pod Failure detected! AI crashed.`, 'log-error');
+          if (attempt < 3) {
+            log(`Applying Exponential Backoff. Waiting ${realBackoff[attempt-1]}...`, 'log-warn');
+            await sleep(backoffTimes[attempt-1]);
+            setNode('node-agent', 'active'); // reset for next try
+          }
+        }
+        attempt++;
+      }
+      
+      // Step 5: DLQ and Saga Compensation
+      if (!success) {
+        log(`MAX RETRIES EXCEEDED. Abandoning message processing.`, 'log-error');
+        resetNodes();
+        setNode('node-dlq', 'active');
+        await sleep(800);
+        log(`Message routed to Dead Letter Queue (DLQ).`, 'log-warn');
+        setNode('node-dlq', 'failed');
+        
+        await sleep(1000);
+        log(`=== SAGA COMPENSATION TRIGGERED ===`, 'log-error');
+        setNode('node-db', 'active');
+        await sleep(800);
+        log(`.NET Saga Orchestrator executing rollback transaction...`);
+        log(`PostgreSQL Business State reversed for <span class="log-key">[Key: ${idempotencyKey}]</span>`, 'log-warn');
+        log(`System state reconciled. Zero State Drift verified.`, 'log-success');
+        setNode('node-db', 'success');
+      }
+
+      document.getElementById('btn-simulate').disabled = false;
+      log(`--- END TRANSACTION ---<br><br>`);
+    }
+  </script>
+</body>
+</html>
