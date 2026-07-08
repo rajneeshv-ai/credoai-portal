@@ -19,4 +19,8 @@ an open-source zero-trust Agentic GraphRAG system for regulated BFSI environment
 ## Architecture
 .NET 10 → Presidio → Outbox → Kafka → Python LangGraph → Neo4j → Azure OpenAI
 
-**Code repository:** github.com/rajneeshv-ai/credo-ai-trust-engine (private — available on request)
+**Code repository:** https://github.com/rajneeshv-ai/credo-ai-trust-engine (private — available on request)
+
+## Licence
+Copyright 2026 Rajneesh Kumar Verma
+Licensed under the [Apache License 2.0](LICENSE)
